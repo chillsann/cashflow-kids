@@ -28,7 +28,7 @@
     rows.push({ kind: 'heading', label: '收入' });
 
     // 工资
-    rows.push({ label: '💼 工资收入（主动收入）', value: sign(p.salary), cls: 'up' });
+    rows.push({ label: '工资收入（主动收入）', value: sign(p.salary), cls: 'up' });
 
     // 资产：按类别分组，展示净收益
     if (!p.assets.length) {
@@ -43,11 +43,11 @@
         });
       });
     }
-    rows.push({ kind: 'subtotal', label: '📈 被动收入合计', value: sign(p.passive), cls: 'up' });
+    rows.push({ kind: 'subtotal', label: '被动收入合计', value: sign(p.passive), cls: 'up' });
     rows.push({ kind: 'subtotal', label: '收入合计', value: sign(totalIncome), cls: 'up' });
 
     rows.push({ kind: 'heading', label: '支出' });
-    rows.push({ label: '🍚 生活支出（吃住行学费）', value: '−' + fmt(p.expenses), cls: 'down' });
+    rows.push({ label: '生活支出（吃住行学费）', value: '−' + fmt(p.expenses), cls: 'down' });
     if (p.baseExpenses && p.expenses > p.baseExpenses + 1) {
       rows.push({
         label: '　└ 其中：物价上涨 / 通胀累积',
@@ -58,25 +58,25 @@
     p.liabilities.forEach(l => {
       const pay = l.balance * l.rate;
       rows.push({
-        label: '🏦 ' + l.name + '（月供利息 ' + (l.rate * 100).toFixed(1) + '%）',
+        label: '' + l.name + '（月供利息 ' + (l.rate * 100).toFixed(1) + '%）',
         value: '−' + fmt(pay),
         cls: 'down',
       });
     });
     if (!p.liabilities.length) {
-      rows.push({ label: '（无负债，不用付利息 👍）', value: '0', cls: 'muted' });
+      rows.push({ label: '（无负债，不用付利息）', value: '0', cls: 'muted' });
     }
     rows.push({ kind: 'subtotal', label: '支出合计', value: '−' + fmt(totalExpense), cls: 'down' });
 
     rows.push({
       kind: 'total',
-      label: '💰 每月净现金流',
+      label: '每月净现金流',
       value: sign(ncf),
       cls: ncf >= 0 ? 'up' : 'down',
     });
     rows.push({
       kind: 'subtotal',
-      label: '🎯 财务自由线：被动收入 ÷ 生活支出',
+      label: '财务自由线：被动收入 ÷ 生活支出',
       value: (p.expenses > 0 ? Math.round((p.passive / p.expenses) * 100) : 0) + '%',
       cls: p.passive >= p.expenses ? 'up' : 'muted',
     });
@@ -99,7 +99,7 @@
 
     const rows = [];
     rows.push({ kind: 'heading', label: '资产' });
-    rows.push({ label: '💵 现金', value: fmt(p.cash), cls: '' });
+    rows.push({ label: '现金', value: fmt(p.cash), cls: '' });
     p.assets.forEach(a => {
       rows.push({ label: a.icon + ' ' + a.name, value: fmt(a.value), cls: '' });
     });
@@ -110,12 +110,12 @@
     p.liabilities.forEach(l => {
       rows.push({ label: l.icon + ' ' + l.name, value: '−' + fmt(l.balance), cls: 'down' });
     });
-    if (!p.liabilities.length) rows.push({ label: '（无负债，很棒！）', value: '0', cls: 'muted' });
+    if (!p.liabilities.length) rows.push({ label: '（无负债，很棒）', value: '0', cls: 'muted' });
     rows.push({ kind: 'subtotal', label: '负债合计', value: '−' + fmt(totalLiab), cls: 'down' });
 
     rows.push({
       kind: 'total',
-      label: '🏛️ 净资产',
+      label: '净资产',
       value: fmt(netWorth),
       cls: netWorth >= 0 ? '' : 'down',
     });
@@ -140,7 +140,7 @@
       const you = (opts.highlight && r.label === opts.highlight) ? ' you' : '';
       return '<tr class="' + cls + you + '">' +
         '<td>' + esc(r.label) + '</td>' +
-        '<td class="' + (r.cls || '') + '">' + esc(r.value) + '</td>' +
+        '<td class="v ' + (r.cls || '') + '">' + esc(r.value) + '</td>' +
       '</tr>';
     }).join('');
     return '<table class="rpt-table"><tbody>' + rowsHtml + '</tbody></table>';
@@ -162,13 +162,13 @@
       const cf = cashflowRows(p);
       const bs = balanceRows(p);
       return '<tr>' +
-        '<td>' + esc(p.emoji + ' ' + p.name) + '</td>' +
-        '<td>' + fmt(p.cash) + '</td>' +
-        '<td>' + fmt(p.salary) + '</td>' +
-        '<td class="up">' + fmt(p.passive) + '</td>' +
-        '<td class="down">' + fmt(cf.totalExpense) + '</td>' +
-        '<td class="' + (cf.ncf >= 0 ? 'up' : 'down') + '">' + sign(cf.ncf) + '</td>' +
-        '<td>' + fmt(bs.netWorth) + '</td>' +
+        '<td>' + esc(p.name) + '</td>' +
+        '<td class="v">' + fmt(p.cash) + '</td>' +
+        '<td class="v">' + fmt(p.salary) + '</td>' +
+        '<td class="v up">' + fmt(p.passive) + '</td>' +
+        '<td class="v down">' + fmt(cf.totalExpense) + '</td>' +
+        '<td class="v ' + (cf.ncf >= 0 ? 'up' : 'down') + '">' + sign(cf.ncf) + '</td>' +
+        '<td class="v">' + fmt(bs.netWorth) + '</td>' +
       '</tr>';
     }).join('');
     return '<table class="rpt-table">' + head + '<tbody>' + body + '</tbody></table>';

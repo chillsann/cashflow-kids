@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="theme-color" content="#4f6ef7">
+<meta name="theme-color" content="#2f5d50">
 <meta name="description" content="现金流小富翁 —— 一款给孩子和家庭玩的财商启蒙桌面游戏。通过买资产、还负债、看懂财务报表，理解被动收入与财务自由。">
 <meta name="keywords" content="现金流游戏,财商教育,儿童理财,被动收入,财务自由,大富翁,亲子游戏">
-<title>现金流小富翁 · 财商启蒙游戏</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B8%3C/text%3E%3C/svg%3E">
+<title>现金流小富翁 · 财商启蒙桌游</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='21' fill='%23d99b2e' stroke='%232c2340' stroke-width='3'/%3E%3Ctext x='24' y='33' font-size='24' font-weight='900' text-anchor='middle' fill='%234a3005' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -18,7 +18,7 @@
 <div class="setup-screen" id="setupScreen">
   <div class="setup">
     <div class="setup-hero">
-      <div class="setup-badge">💰 财商启蒙 · 亲子桌游</div>
+      <div class="setup-badge">财商启蒙 · 亲子桌游</div>
       <h1>现金流小富翁</h1>
       <p class="setup-sub">
         让钱为你工作，而不是你为钱工作。<br>
@@ -41,15 +41,15 @@
       <div class="field-label">游戏模式 <span class="hint">影响机会成本与电脑策略</span></div>
       <div class="mode-grid" id="modeGrid">
         <button class="mode-card" data-mode="easy">
-          <div class="mc-name">🌱 轻松</div>
+          <div class="mc-name">轻松</div>
           <div class="mc-desc">机会便宜、意外少，适合 6–10 岁孩子</div>
         </button>
         <button class="mode-card" data-mode="normal">
-          <div class="mc-name">⚖️ 标准</div>
+          <div class="mc-name">标准</div>
           <div class="mc-desc">贴近真实理财节奏，适合 10 岁以上</div>
         </button>
         <button class="mode-card" data-mode="hard">
-          <div class="mc-name">🔥 硬核</div>
+          <div class="mc-name">硬核</div>
           <div class="mc-desc">通胀高、行情波动大，考验真本事</div>
         </button>
       </div>
@@ -67,7 +67,7 @@
 
       <div class="opt-row">
         <div>
-          <div class="ot">📖 新手引导</div>
+          <div class="ot">新手引导</div>
           <div class="od">开局时用高亮指引，逐项讲解玩法</div>
         </div>
         <button class="switch" id="optTutorial" role="switch" aria-checked="true"></button>
@@ -75,7 +75,7 @@
 
       <div class="opt-row">
         <div>
-          <div class="ot">🔔 音效</div>
+          <div class="ot">音效</div>
           <div class="od">掷骰子、买卖、领工资的提示音</div>
         </div>
         <button class="switch" id="optSound" role="switch" aria-checked="true"></button>
@@ -83,7 +83,7 @@
 
       <div class="opt-row">
         <div>
-          <div class="ot">💾 自动存档</div>
+          <div class="ot">自动存档</div>
           <div class="od">刷新页面后可继续上一局</div>
         </div>
         <button class="switch" id="optAutosave" role="switch" aria-checked="true"></button>
@@ -91,7 +91,7 @@
 
       <div class="opt-row">
         <div>
-          <div class="ot">🧮 显示详细报表</div>
+          <div class="ot">显示详细报表</div>
           <div class="od">结算时展示完整收支与资产负债表</div>
         </div>
         <button class="switch" id="optReport" role="switch" aria-checked="true"></button>
@@ -100,12 +100,12 @@
 
     <div class="setup-actions">
       <button class="btn btn-primary btn-lg btn-block" id="btnStart">
-        🚀 开始游戏
+        开始游戏
       </button>
     </div>
 
     <button class="rules-toggle" id="btnRules" aria-expanded="false">
-      📜 游戏规则与财商知识点 <span class="chev">▾</span>
+      游戏规则与财商知识点 <span class="chev">▾</span>
     </button>
 
     <!-- 规则面板 -->
@@ -168,7 +168,7 @@
     <!-- 顶栏 -->
     <div class="topbar">
       <div class="brand">
-        <div class="brand-logo">💸</div>
+        <div class="brand-logo" id="brandLogo"></div>
         <div class="brand-text">
           <h1>现金流小富翁</h1>
           <div class="sub" id="subLabel">让钱为你工作</div>
@@ -183,9 +183,9 @@
       </div>
 
       <div class="topbar-actions">
-        <button class="btn btn-ghost btn-sm" id="btnHelp">📖 帮助</button>
-        <button class="btn btn-ghost btn-sm" id="btnSave">💾 存档</button>
-        <button class="btn btn-ghost btn-sm" id="btnRestart">🔄 重开</button>
+        <button class="btn btn-ghost btn-sm" id="btnHelp">帮助</button>
+        <button class="btn btn-ghost btn-sm" id="btnSave">存档</button>
+        <button class="btn btn-ghost btn-sm" id="btnRestart">重开</button>
       </div>
     </div>
 
@@ -205,6 +205,8 @@
         <div class="board-shell">
           <div class="board-stage">
             <div class="board" id="board"></div>
+            <!-- 窄屏时棋盘中央的装饰占位（宽屏由控制台覆盖） -->
+            <div class="board-center-slot" id="boardSlot"></div>
             <!-- 棋盘中心控制台 -->
             <div class="board-center" id="boardCenter"></div>
           </div>
@@ -213,7 +215,7 @@
         <!-- 定期报表 -->
         <div class="card">
           <div class="card-head">
-            <div class="card-title">🧮 财务报表</div>
+            <div class="card-title">财务报表</div>
             <div class="report-tabs" id="reportTabs">
               <button data-tab="cashflow" class="active">收支表</button>
               <button data-tab="balance">资产负债表</button>
@@ -228,7 +230,7 @@
 
         <div class="card">
           <div class="card-head">
-            <div class="card-title">👥 玩家状态</div>
+            <div class="card-title">玩家状态</div>
             <div class="tag" id="turnBadge">等待开局</div>
           </div>
           <div class="card-body">
@@ -238,7 +240,7 @@
 
         <div class="card">
           <div class="card-head">
-            <div class="card-title">🏅 财商徽章</div>
+            <div class="card-title">财商徽章</div>
             <div class="tag" id="badgeCount">0 / 12</div>
           </div>
           <div class="card-body">
@@ -248,7 +250,7 @@
 
         <div class="card">
           <div class="card-head">
-            <div class="card-title">📜 事件记录</div>
+            <div class="card-title">事件记录</div>
             <button class="btn btn-ghost btn-sm" id="btnClearLog">清空</button>
           </div>
           <div class="log" id="log"></div>
@@ -270,7 +272,7 @@
      ══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true">
   <div class="modal" id="modalBox">
-    <div class="modal-icon" id="modalIcon">💡</div>
+    <div class="modal-icon" id="modalIcon"></div>
     <h2 class="modal-title" id="modalTitle"></h2>
     <p class="modal-desc" id="modalDesc"></p>
     <div id="modalExtra"></div>
@@ -317,6 +319,10 @@
 <!-- 成就提示 -->
 <div class="toast-stack" id="toastStack"></div>
 
+<!-- 撒花层 -->
+<div class="confetti" id="confetti"></div>
+
+<script src="js/art.js"></script>
 <script src="js/data.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/report.js"></script>

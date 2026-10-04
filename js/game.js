@@ -49,6 +49,7 @@
       id: index,
       name: cfg.name || ('玩家' + (index + 1)),
       emoji: D.PLAYER_EMOJIS[index % D.PLAYER_EMOJIS.length],
+      face: D.PLAYER_FACES[index % D.PLAYER_FACES.length],
       color: D.PLAYER_COLORS[index % D.PLAYER_COLORS.length],
       isAI: !!cfg.isAI,
       persona: persona,
@@ -152,7 +153,7 @@
       removeAsset(p, a.id);
       p.cash += price;
       p.stats.sold++;
-      U.log('💱 <b>' + p.name + '</b> 现金不够，被迫低价变卖 <b>' + a.name + '</b>，收回 ' +
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 现金不够，被迫低价变卖 <b>' + a.name + '</b>，收回 ' +
             '<span class="n">' + fmt(price) + '</span> 元（折价 22%）', 'down');
       if (!p.isAI) {
         await U.modal({
@@ -181,7 +182,7 @@
         balance: loan, rate: Math.min(0.06, debtRate() * 1.5), kind: 'emergency',
       });
       p.stats.loans++;
-      U.log('🏦 <b>' + p.name + '</b> 现金见底，向银行申请了 <span class="n">' + fmt(loan) + '</span> 元紧急贷款', 'down');
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 现金见底，向银行申请了 <span class="n">' + fmt(loan) + '</span> 元紧急贷款', 'down');
 
       if (!p.isAI) {
         await U.modal({
@@ -199,7 +200,7 @@
       // 破产判定：现金为负、无法再借，且净资产已被耗尽
       if (p.cash < 0 && p.netWorth < 0) {
         p.bankrupt = true;
-        U.log('💔 <b>' + p.name + '</b> 资不抵债，宣告破产', 'down');
+        U.log('<i class="dot"></i><b>' + p.name + '</b> 资不抵债，宣告破产', 'down');
         global.SFX.play('fail');
         if (!p.isAI) {
           await U.modal({
@@ -214,7 +215,7 @@
         }
       } else if (p.netWorth <= (p.expenses + interestOf(p)) * 1.5) {
         // 危险边缘提醒（不破产，但教育意图要到位）
-        U.log('⚠️ <b>' + p.name + '</b> 净资产只剩不到 1.5 个月开支，已经走到破产边缘', 'down');
+        U.log('<i class="dot"></i><b>' + p.name + '</b> 净资产只剩不到 1.5 个月开支，已经走到破产边缘', 'down');
       }
     }
   }
@@ -323,7 +324,7 @@
         U.popBadge(b.id);
         setTimeout(() => {
           U.toast(b.icon, '解锁徽章 · ' + b.name, b.desc);
-          U.log('🏅 <b>' + p.name + '</b> 解锁徽章 ' + b.icon + ' <b>' + b.name + '</b>（' + b.desc + '）', 'gold');
+          U.log('<i class="dot"></i><b>' + p.name + '</b> 解锁徽章 ' + b.icon + ' <b>' + b.name + '</b>（' + b.desc + '）', 'gold');
         }, i * 380);
       });
     }
@@ -426,7 +427,7 @@
     await sleep(90);
     await U.rollDiceAnimation(die2);
 
-    U.log('🎲 <b>' + p.name + '</b> 掷出 <span class="n">' + die1 + '</span> + <span class="n">' + die2 + '</span>' +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 掷出 <span class="n">' + die1 + '</span> + <span class="n">' + die2 + '</span>' +
           (bonus ? '（善缘 <span class="n">+' + bonus + '</span>）' : '') +
           ' = <b>' + steps + '</b> 步');
 
@@ -497,12 +498,13 @@
     }
 
     global.SFX.play(totalNcf >= 0 ? 'income' : 'expense');
+    const cellEl = document.querySelector('.cell[data-index="' + p.pos + '"]');
     if (p.cash >= 0) {
-      const el = document.querySelector('.cell[data-index="' + p.pos + '"]');
-      U.floatText(el, (totalNcf >= 0 ? '+' : '−') + fmt(Math.abs(totalNcf)), totalNcf >= 0 ? '#e0342b' : '#0f9d58');
+      U.floatText(cellEl, (totalNcf >= 0 ? '+' : '−') + fmt(Math.abs(totalNcf)), totalNcf >= 0 ? '#d63b2f' : '#12885a');
+      if (totalNcf >= 0) U.coinBurst(cellEl, 9);
     }
 
-    U.log('💰 <b>' + p.name + '</b> ' + (isStopped ? '停在' : '路过') + '领工资格' +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> ' + (isStopped ? '停在' : '路过') + '领工资格' +
           (times > 1 ? '（结算 ' + times + ' 次）' : '') + '：' +
           '工资 <span class="n up">+' + fmt(last.income - p.passive + p.passive) + '</span>…' +
           '净现金流 <span class="n ' + (totalNcf >= 0 ? 'up' : 'down') + '">' +
@@ -514,11 +516,11 @@
       title: times > 1 ? '领工资 ×' + times : '发工资啦',
       desc: '工资是主动收入——你必须去上班才能拿到。被动收入则是资产替你赚的。',
       rows: [
-        { label: '💼 工资收入',   value: '+' + fmt(p.salary),  cls: 'up' },
-        { label: '📈 被动收入',   value: '+' + fmt(p.passive), cls: 'up' },
-        { label: '🍚 生活支出',   value: '−' + fmt(p.expenses), cls: 'down' },
-        { label: '🏦 负债利息',   value: '−' + fmt(last.interest), cls: 'down' },
-        { label: '💰 本次净现金流', value: (last.ncf >= 0 ? '+' : '−') + fmt(Math.abs(last.ncf)),
+        { label: '工资收入',   value: '+' + fmt(p.salary),  cls: 'up' },
+        { label: '被动收入',   value: '+' + fmt(p.passive), cls: 'up' },
+        { label: '生活支出',   value: '−' + fmt(p.expenses), cls: 'down' },
+        { label: '负债利息',   value: '−' + fmt(last.interest), cls: 'down' },
+        { label: '本次净现金流', value: (last.ncf >= 0 ? '+' : '−') + fmt(Math.abs(last.ncf)),
           cls: last.ncf >= 0 ? 'up' : 'down', emphasis: true },
       ],
       teach: '看！<b>被动收入</b>那一栏，是你不用上班也能拿到的钱。每买一项资产，这一栏就变大一点。',
@@ -559,7 +561,7 @@
     global.SFX.play('income');
     const el = document.querySelector('.cell[data-index="0"]');
     U.floatText(el, '+' + fmt(D.START_BONUS), '#e0342b');
-    U.log('🏁 <b>' + p.name + '</b> 绕行一圈回到起点，领取 <span class="n up">' + fmt(D.START_BONUS) + '</span> 元完成奖励', 'up');
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 绕行一圈回到起点，领取 <span class="n up">' + fmt(D.START_BONUS) + '</span> 元完成奖励', 'up');
     if (!p.isAI) {
       await U.modal({
         icon: '🏁', title: '完成一圈！',
@@ -623,7 +625,7 @@
       if (isBig) {
         rows.push({ label: '首付（现金支出）', value: '−' + fmt(down), cls: 'down' });
         rows.push({ label: '贷款金额', value: fmt(loan), cls: 'down' });
-        rows.push({ label: '　└ 月供利息（' + (mortgageRate * 100).toFixed(1) + '%/月）', value: '−' + fmt(mortgage) + ' /月', cls: 'down' });
+        rows.push({ label: '└ 月供利息（' + (mortgageRate * 100).toFixed(1) + '%/月）', value: '−' + fmt(mortgage) + ' /月', cls: 'down' });
       } else {
         rows.push({ label: '需要现金', value: '−' + fmt(cost), cls: 'down' });
       }
@@ -670,18 +672,18 @@
     const el = document.querySelector('.cell[data-index="' + p.pos + '"]');
     U.floatText(el, '−' + fmt(down), '#0f9d58');
 
-    U.log('✅ <b>' + p.name + '</b> 买入 ' + src.icon + ' <b>' + src.name + '</b>，' +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 买入 ' + src.icon + ' <b>' + src.name + '</b>，' +
           (isBig ? '首付 <span class="n down">' + fmt(down) + '</span>（贷款 ' + fmt(loan) + '）' : '花费 <span class="n down">' + fmt(cost) + '</span>') +
           '，被动收入 <span class="n up">+' + fmt(income) + '/月</span>', 'up');
 
     if (!p.isAI) {
       await U.modal({
         icon: '🎉',
-        title: '成功买入 ' + src.name,
+        title: '成功买入' + src.name,
         desc: '注意看：现金变少了一点，但每月的被动收入增加了——钱换了种方式陪你。',
         rows: [
-          { label: '💸 现金支出', value: '−' + fmt(down), cls: 'down' },
-          { label: '📈 月被动收入', value: '+' + fmt(income), cls: 'up', emphasis: true },
+          { label: '现金支出', value: '−' + fmt(down), cls: 'down' },
+          { label: '月被动收入', value: '+' + fmt(income), cls: 'up', emphasis: true },
           { label: '剩余现金', value: fmt(p.cash) },
           { label: '月净现金流', value: (ncfOf(p) >= 0 ? '+' : '−') + fmt(Math.abs(ncfOf(p))),
             cls: ncfOf(p) >= 0 ? 'up' : 'down' },
@@ -706,7 +708,7 @@
     } else {
       const choice = await U.modal({
         icon: src.icon,
-        title: '⚠️ ' + src.name,
+        title: '⚠' + src.name,
         desc: src.desc,
         rows: [
           { label: '现金支出', value: '−' + fmt(src.cost), cls: 'down' },
@@ -728,10 +730,10 @@
       p.expenses += Math.abs(src.income);
       p.baseExpenses += Math.abs(src.income);
       global.SFX.play('alert');
-      U.log('😖 <b>' + p.name + '</b> ' + src.name + '，新增负债 <span class="n down">' + fmt(src.debt) + '</span>，' +
+      U.log('<i class="dot"></i><b>' + p.name + '</b> ' + src.name + '，新增负债 <span class="n down">' + fmt(src.debt) + '</span>，' +
             '每月多支出 <span class="n down">' + fmt(Math.abs(src.income)) + '</span>', 'down');
     } else {
-      U.log('🛑 <b>' + p.name + '</b> 明智地拒绝了「' + src.name + '」', 'info');
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 明智地拒绝了「' + src.name + '」', 'info');
       if (!p.isAI) {
         await U.modal({
           icon: '👏', title: '聪明的选择！',
@@ -759,7 +761,7 @@
     } else {
       const choice = await U.modal({
         icon: offer.icon,
-        title: '💰 ' + offer.name,
+        title: offer.name,
         desc: offer.desc,
         rows: [
           { label: '买入价', value: '−' + fmt(offer.buyPrice), cls: 'down' },
@@ -782,11 +784,11 @@
       addAsset(p, { id: offer.id, name: offer.name, icon: offer.icon, tags: [offer.buyTag] },
                offer.buyPrice, offer.buyIncome, offer.buyPrice, [offer.buyTag]);
       global.SFX.play('buy');
-      U.log('💰 <b>' + p.name + '</b> 抓住机会买入 <b>' + offer.name + '</b>，被动收入 <span class="n up">+' +
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 抓住机会买入 <b>' + offer.name + '</b>，被动收入 <span class="n up">+' +
             fmt(offer.buyIncome) + '/月</span>', 'up');
       if (p.cash < 0) await handleNegativeCash(p);
     } else if (!p.isAI) {
-      U.log('💭 <b>' + p.name + '</b> 错过了 ' + offer.name, 'info');
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 错过了 ' + offer.name, 'info');
     }
   }
 
@@ -813,7 +815,7 @@
         ],
         teach: '卖资产收回的是「一次性」的钱，放弃的是「持续」的现金流。想清楚你要哪一种。',
         options: [
-          { label: '✅ 卖掉，落袋为安', value: 'sell', primary: true },
+          { label: '卖掉，落袋为安', value: 'sell', primary: true },
           { label: '继续持有', value: 'hold' },
         ],
       });
@@ -825,7 +827,7 @@
       p.cash += price;
       p.stats.sold++;
       global.SFX.play('sell');
-      U.log('💱 <b>' + p.name + '</b> 卖出 ' + a.icon + ' <b>' + a.name + '</b>，获利 <span class="n up">+' +
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 卖出 ' + a.icon + ' <b>' + a.name + '</b>，获利 <span class="n up">+' +
             fmt(price) + '</span>（成本 ' + fmt(a.cost) + '）', 'up');
     }
   }
@@ -842,7 +844,7 @@
     const el = document.querySelector('.cell[data-index="' + p.pos + '"]');
     U.floatText(el, '−' + fmt(amount), '#0f9d58');
 
-    U.log('🛍️ <b>' + p.name + '</b> ' + card.name + '，花了 <span class="n down">' + fmt(amount) + '</span> 元' +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> ' + card.name + '，花了 <span class="n down">' + fmt(amount) + '</span> 元' +
           '（' + card.tag + '）', 'down');
 
     if (!p.isAI) {
@@ -938,7 +940,7 @@
       const cls = r.delta > 0 ? 'up' : r.delta < 0 ? 'down' : 'info';
       const deltaTxt = r.delta === 0 ? '' :
         '（<span class="n ' + cls + '">' + (r.delta > 0 ? '+' : '−') + fmt(Math.abs(r.delta)) + '</span>）';
-      U.log('📊 <b>市场风云</b>｜' + ev.icon + ' ' + ev.name + ' → <b>' + r.p.name + '</b> ' +
+      U.log('<i class="dot"></i><b>市场风云</b>｜' + ev.icon + ' ' + ev.name + ' → <b>' + r.p.name + '</b> ' +
             r.note + deltaTxt, cls);
     });
 
@@ -955,7 +957,7 @@
 
     await U.modal({
       icon: ev.icon,
-      title: '📊 ' + ev.name,
+      title: ev.name,
       desc: ev.desc,
       rows: results.map(r => ({
         label: r.p.emoji + ' ' + r.p.name + '　' + r.note,
@@ -994,12 +996,12 @@
     const rows = [];
     if (covered > 0) {
       rows.push({ label: '总损失', value: '−' + fmt(covered + amount), cls: 'down' });
-      rows.push({ label: '☂️ 保险理赔', value: '+' + fmt(covered), cls: 'up' });
+      rows.push({ label: '☂保险理赔', value: '+' + fmt(covered), cls: 'up' });
     }
     rows.push({ label: '自付金额', value: '−' + fmt(amount), cls: amount > 0 ? 'down' : '', emphasis: amount === 0 });
     rows.push({ label: '剩余现金', value: fmt(Math.max(0, p.cash)) });
 
-    U.log('⚡ <b>' + p.name + '</b> 遇到「' + card.name + '」，' +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 遇到「' + card.name + '」，' +
           (covered > 0 ? '保险理赔 <span class="n up">' + fmt(covered) + '</span>，' : '') +
           '自付 <span class="n down">' + fmt(amount) + '</span> 元', 'down');
 
@@ -1026,7 +1028,7 @@
     const el = document.querySelector('.cell[data-index="' + p.pos + '"]');
     U.floatText(el, '+' + fmt(card.amount), '#e0342b');
 
-    U.log('💼 <b>' + p.name + '</b> ' + card.name + '，赚到 <span class="n up">' + fmt(card.amount) + '</span> 元（主动收入）', 'up');
+    U.log('<i class="dot"></i><b>' + p.name + '</b> ' + card.name + '，赚到 <span class="n up">' + fmt(card.amount) + '</span> 元（主动收入）', 'up');
 
     if (!p.isAI) {
       await U.modal({
@@ -1064,7 +1066,7 @@
 
       const choice = await U.modal({
         icon: offer.icon,
-        title: '📚 ' + offer.name,
+        title: offer.name,
         desc: offer.desc,
         rows: rows,
         teach: offer.teach,
@@ -1077,7 +1079,7 @@
     }
 
     if (!go) {
-      if (!p.isAI && !canAfford) U.log('📚 <b>' + p.name + '</b> 想进修，但现金不够', 'info');
+      if (!p.isAI && !canAfford) U.log('<i class="dot"></i><b>' + p.name + '</b> 想进修，但现金不够', 'info');
       return;
     }
 
@@ -1092,7 +1094,7 @@
     }
 
     global.SFX.play('lucky');
-    U.log('📚 <b>' + p.name + '</b> 完成「' + offer.name + '」，' +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 完成「' + offer.name + '」，' +
           (offer.salaryGain ? '工资提升到 <span class="n up">' + fmt(p.salary) + '/月</span> ' : '') +
           (offer.incomeGain ? '资产收益 <span class="n up">+' + fmt(offer.incomeGain) + '/月</span> ' : '') +
           (offer.expenseCut ? '支出降低 <span class="n up">−' + fmt(offer.expenseCut) + '/月</span>' : ''), 'up');
@@ -1124,7 +1126,7 @@
     } else {
       const choice = await U.modal({
         icon: card.icon,
-        title: '💝 ' + card.name,
+        title: card.name,
         desc: '捐出一笔钱，帮助需要帮助的人。你会获得「善缘」——接下来几次移动 +1 步。',
         rows: [
           { label: '捐赠金额', value: '−' + fmt(card.amount), cls: 'down' },
@@ -1149,7 +1151,7 @@
     p.charityBonus = 1;
 
     global.SFX.play('lucky');
-    U.log('💝 <b>' + p.name + '</b> ' + card.name + '，捐出 <span class="n down">' + fmt(card.amount) +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> ' + card.name + '，捐出 <span class="n down">' + fmt(card.amount) +
           '</span> 元，获得 ' + card.steps + ' 次「善缘 +1 步」', 'gold');
 
     if (!p.isAI) {
@@ -1173,12 +1175,12 @@
     if (!p.isAI) {
       const acts = [];
       if (!p.insured && p.cash >= D.INSURANCE_COST) {
-        acts.push({ label: '☂️ 购买保险（' + fmt(D.INSURANCE_COST) + ' 元）', value: 'ins', primary: false });
+        acts.push({ label: '☂购买保险（' + fmt(D.INSURANCE_COST) + ' 元）', value: 'ins', primary: false });
       }
       if (p.liabilities.length) {
-        acts.push({ label: '🔓 提前还债', value: 'repay', primary: false });
+        acts.push({ label: '提前还债', value: 'repay', primary: false });
       }
-      acts.push({ label: '👋 什么都不做', value: 'none', primary: true });
+      acts.push({ label: '什么都不做', value: 'none', primary: true });
 
       const choice = await U.modal({
         icon: '🏦',
@@ -1197,7 +1199,7 @@
         p.cash -= D.INSURANCE_COST;
         p.insured = true;
         global.SFX.play('buy');
-        U.log('☂️ <b>' + p.name + '</b> 购买了保险，意外支出可获 ' + Math.round(D.INSURANCE_COVER * 100) + '% 理赔', 'up');
+        U.log('<i class="dot"></i><b>' + p.name + '</b> 购买了保险，意外支出可获 ' + Math.round(D.INSURANCE_COVER * 100) + '% 理赔', 'up');
         await U.modal({
           icon: '☂️', title: '保险已生效',
           desc: '每年花一点点钱，把「大风险」转嫁给保险公司。',
@@ -1220,13 +1222,13 @@
           await repayDebt(p, l.id, amt);
         }
         acted = true;
-        U.log('🏦 <b>' + p.name + '</b> 在银行提前还了一部分负债', 'info');
+        U.log('<i class="dot"></i><b>' + p.name + '</b> 在银行提前还了一部分负债', 'info');
       }
     }
     if (!acted && !p.insured && p.cash > D.INSURANCE_COST * 4) {
       p.cash -= D.INSURANCE_COST;
       p.insured = true;
-      U.log('☂️ <b>' + p.name + '</b> 购买了保险', 'info');
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 购买了保险', 'info');
     }
     render();
   }
@@ -1243,7 +1245,7 @@
     } else {
       const choice = await U.modal({
         icon: dream.icon,
-        title: '🌈 梦想之角 · ' + dream.name,
+        title: '梦想之角 ·' + dream.name,
         desc: dream.desc,
         rows: [
           { label: '梦想价格', value: '−' + fmt(dream.cost), cls: 'down' },
@@ -1260,7 +1262,7 @@
     }
 
     if (!buy) {
-      if (!p.isAI && !canAfford) U.log('🌈 <b>' + p.name + '</b> 在梦想之角看了看「' + dream.name + '」，还差 ' + fmt(dream.cost - p.cash) + ' 元', 'info');
+      if (!p.isAI && !canAfford) U.log('<i class="dot"></i><b>' + p.name + '</b> 在梦想之角看了看「' + dream.name + '」，还差 ' + fmt(dream.cost - p.cash) + ' 元', 'info');
       return;
     }
 
@@ -1268,7 +1270,7 @@
     p.cash += D.DREAM_BONUS;
     p.stats.dreams++;
     global.SFX.play('win');
-    U.log('🌈 <b>' + p.name + '</b> 实现了梦想「' + dream.name + '」！花费 <span class="n down">' + fmt(dream.cost) +
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 实现了梦想「' + dream.name + '」！花费 <span class="n down">' + fmt(dream.cost) +
           '</span>，获得鼓励金 <span class="n up">+' + fmt(D.DREAM_BONUS) + '</span>', 'gold');
 
     if (!p.isAI) {
@@ -1297,11 +1299,12 @@
       G.over = true;
       p.freedomRound = G.round;
       global.SFX.play('win');
-      U.log('🎊 <b>' + p.name + '</b> 实现财务自由！被动收入 <span class="n up">' + fmt(p.passive) +
+      U.confetti(140);
+      U.log('<i class="dot"></i><b>' + p.name + '</b> 实现财务自由！被动收入 <span class="n up">' + fmt(p.passive) +
             '</span> ≥ 生活费 <span class="n">' + fmt(p.expenses) + '</span>', 'win');
-      U.setNews('🎊 ' + p.emoji + ' ' + p.name + ' 实现财务自由！', '恭喜');
+      U.setNews(p.name + ' 实现财务自由！被动收入已经能覆盖生活开销。', '恭喜');
       checkBadges(p);
-      setTimeout(() => endGame(p), 900);
+      setTimeout(() => endGame(p), 1400);
       return true;
     }
     return false;
@@ -1386,26 +1389,31 @@
     if (!p) return;
 
     const canRoll = !G.over && !G.busy && !p.isAI;
-    const prog = Math.min(100, (p.passive / Math.max(1, p.expenses)) * 100);
+    const face = p.face || global.UI.faceOf(p, G.cur);
 
+    /* 每位玩家的迷你头像 + 被动收入 */
     const mini = G.players.map((q, i) =>
-      '<span class="mini-chip' + (i === G.cur && !G.over ? ' active' : '') + '" style="--mc:' + q.color + '">' +
-        q.emoji + ' ' + fmt(q.passive) + '</span>'
+      '<span class="mini-chip' + (i === G.cur && !G.over ? ' active' : '') + '" style="--mc:' + q.color + '" title="' + esc(q.name) + '">' +
+        (global.Art ? global.Art.face(q.face || global.UI.faceOf(q, i)).replace('class="face-svg"', 'class="face-svg mini-face"') : '') +
+        '<span class="num">' + fmt(q.passive) + '</span></span>'
     ).join('');
 
     el.innerHTML =
       '<div class="turn-label">' + (G.over ? '游戏结束' : '当前回合') + '</div>' +
-      '<div class="turn-player" style="color:' + p.color + '">' + p.emoji + ' ' + esc(p.name) + '</div>' +
+      '<div class="turn-player" style="color:' + p.color + '">' +
+        (global.Art ? global.Art.face(face) : '') +
+        '<span>' + esc(p.name) + '</span>' +
+      '</div>' +
       '<div class="turn-sub">' +
         (G.over ? '本局已结束'
-          : p.isAI ? p.persona.icon + ' ' + p.persona.name + ' 正在思考…'
+          : p.isAI ? p.persona.name + ' 正在思考…'
           : '被动收入 ' + fmt(p.passive) + ' / 生活费 ' + fmt(p.expenses)) +
       '</div>' +
       '<div class="dice-stage" id="diceStage"></div>' +
       '<div class="turn-sub" id="diceValue" style="font-variant-numeric:tabular-nums">　</div>' +
       '<button class="btn-roll' + (canRoll ? ' pulse' : '') + '" id="rollBtn"' +
         (canRoll ? '' : ' disabled') + '>' +
-        (G.over ? '🏁 已结束' : p.isAI ? '🤖 电脑回合' : G.busy ? '⏳ 行动中' : '🎲 掷骰子') +
+        (G.over ? '已结束' : p.isAI ? '电脑回合' : G.busy ? '行动中' : '掷骰子') +
       '</button>' +
       '<div class="center-teach" id="centerTeach"></div>' +
       '<div class="center-mini">' + mini + '</div>';
@@ -1536,7 +1544,7 @@
       id: a.id,
       icon: a.icon,
       name: a.name,
-      desc: '原价 ' + fmt(a.cost) + '　·　卖价约为 ' + fmt(Math.round(a.value * 0.9)) + '　·　月收益 ' + fmt(a.income),
+      desc: '原价' + fmt(a.cost) + '　·　卖价约为 ' + fmt(Math.round(a.value * 0.9)) + '　·　月收益 ' + fmt(a.income),
       cost: '≈ ' + fmt(Math.round(a.value * 0.9)),
       income: '−' + fmt(a.income) + '/月',
       incomeBad: true,
@@ -1558,7 +1566,7 @@
     const gain = price - a.cost;
     const yes = await U.modal({
       icon: a.icon,
-      title: '确认卖出 ' + a.name + '？',
+      title: '确认卖出' + a.name + '？',
       desc: '卖出后它带来的被动收入会消失。',
       rows: [
         { label: '回收现金', value: '+' + fmt(price), cls: 'up' },
@@ -1576,7 +1584,7 @@
     p.cash += price;
     p.stats.sold++;
     global.SFX.play('sell');
-    U.log('💱 <b>' + p.name + '</b> 卖出 ' + a.icon + ' <b>' + a.name + '</b>，收回 <span class="n up">' + fmt(price) + '</span>', 'up');
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 卖出 ' + a.icon + ' <b>' + a.name + '</b>，收回 <span class="n up">' + fmt(price) + '</span>', 'up');
   }
 
   async function openRepayPanel(p) {
@@ -1588,7 +1596,7 @@
       id: l.id,
       icon: l.icon,
       name: l.name,
-      desc: '欠款 ' + fmt(l.balance) + '　·　月利率 ' + (l.rate * 100).toFixed(1) +
+      desc: '欠款' + fmt(l.balance) + '　·　月利率 ' + (l.rate * 100).toFixed(1) +
             '%　·　每月利息 ' + fmt(l.balance * l.rate) + ' 元',
       cost: '欠 ' + fmt(l.balance),
       income: '月息 −' + fmt(l.balance * l.rate),
@@ -1620,7 +1628,7 @@
         { label: '每月利息', value: '−' + fmt(l.balance * l.rate), cls: 'down' },
       ],
       options: [
-        { label: '💰 全部还清（' + fmt(maxPay) + '）', value: 'all', primary: true, disabled: maxPay <= 0 },
+        { label: '全部还清（' + fmt(maxPay) + '）', value: 'all', primary: true, disabled: maxPay <= 0 },
         { label: '还一半', value: 'half', disabled: maxPay <= 0 },
         { label: '取消', value: null },
       ],
@@ -1633,7 +1641,7 @@
 
     const paid = await repayDebt(p, l.id, pay);
     global.SFX.play('expense');
-    U.log('🔓 <b>' + p.name + '</b> 偿还「' + l.name + '」<span class="n down">' + fmt(paid) + '</span> 元', 'info');
+    U.log('<i class="dot"></i><b>' + p.name + '</b> 偿还「' + l.name + '」<span class="n down">' + fmt(paid) + '</span> 元', 'info');
 
     await U.modal({
       icon: '🔓',
@@ -1693,58 +1701,61 @@
   function showResult(winner, ranked, byNetWorth, reason, byFreedom) {
     const sc = document.getElementById('resultScreen');
     const card = document.getElementById('resultCard');
+    const A = global.Art;
 
     const human = G.players.filter(p => !p.isAI);
     const humanWon = winner && !winner.isAI;
     const anyoneFree = G.players.some(p => !p.bankrupt && p.passive >= p.expenses && p.passive > 0);
+    const faceOf = (p, i) => (p.face || U.faceOf(p, i));
 
     const ranks = ranked.map((p, i) => {
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+      const medal = i === 0 ? '1' : i === 1 ? '2' : i === 2 ? '3' : (i + 1);
       const done = p.passive >= p.expenses && p.passive > 0 && !p.bankrupt;
       const pct = Math.round(freedomProgressOf(p) * 100);
       const sub = p.bankrupt
-        ? '💔 破产 · 欠款 ' + fmt(totalDebt(p))
+        ? '破产 · 欠款 ' + fmt(totalDebt(p))
         : done
-          ? '🏆 财务自由 · 第 ' + (p.freedomRound || '?') + ' 回合'
+          ? '财务自由 · 第 ' + (p.freedomRound || '?') + ' 回合'
           : '被动 ' + fmt(p.passive) + ' / 生活费 ' + fmt(p.expenses) + '（自由进度 ' + pct + '%）';
-      return '<div class="rank-row' + (i === 0 ? ' first' : '') + '" style="--rc:' + p.color + '">' +
-        '<div class="rr-pos">' + medal + '</div>' +
-        '<div class="rr-name">' +
-          '<b>' + p.emoji + ' ' + esc(p.name) + (p.isAI ? ' <span style="font-size:10px;color:#94a3b8">（电脑）</span>' : '') + '</b>' +
-          '<span>' + sub + '</span>' +
+      return '<div class="rank-row' + (i === 0 ? ' win' : '') + '">' +
+        '<div class="rank-no">' + medal + '</div>' +
+        '<div class="rank-avatar" style="--rk:' + p.color + '">' + (A ? A.face(faceOf(p, p.id)) : '') + '</div>' +
+        '<div class="rank-info">' +
+          '<div class="rank-name">' + esc(p.name) + (p.isAI ? ' <span class="tag ai">电脑</span>' : '') + '</div>' +
+          '<div class="rank-why">' + sub + '</div>' +
         '</div>' +
-        '<div class="rr-val">' + fmt(p.netWorth) + '<small>净资产</small></div>' +
+        '<div class="rank-vals"><div class="big">' + fmt(p.netWorth) + '</div><div class="sm">净资产</div></div>' +
       '</div>';
     }).join('');
 
     const top = winner || ranked[0];
 
-    // 每个玩家一句针对性点评，比笼统的「你学到了什么」有用得多
+    /* 每个玩家一句针对性点评，比笼统的「你学到了什么」有用得多 */
     const advice = p => {
       const burn = p.expenses + interestOf(p);
-      if (p.bankrupt) return '💔 破产了。原因通常不是赚得少，而是欠得多、现金流太紧。';
-      if (p.passive >= p.expenses && p.passive > 0) return '🏆 被动收入盖住了生活费，你自由了。';
-      if (interestOf(p) > p.salary * 0.15) return '⚠️ 利息吃掉你工资的 ' + Math.round(interestOf(p) / p.salary * 100) + '%。先还高息负债，比买新资产更划算。';
-      if (p.cash < burn * 2) return '⚠️ 应急基金不到 2 个月开销，一次意外就可能被迫折价卖资产。';
-      if (p.passive === 0) return '💡 一整局没买任何资产。工资再高也只是主动收入，停了就没有了。';
-      return '📈 现金流还算稳，下一步是让被动收入追上生活费（当前 ' + Math.round(freedomProgressOf(p) * 100) + '%）。';
+      if (p.bankrupt) return '破产了。原因通常不是赚得少，而是欠得多、现金流太紧。';
+      if (p.passive >= p.expenses && p.passive > 0) return '被动收入盖住了生活费，你自由了。';
+      if (interestOf(p) > p.salary * 0.15) return '利息吃掉你工资的 ' + Math.round(interestOf(p) / p.salary * 100) + '%。先还高息负债，比买新资产更划算。';
+      if (p.cash < burn * 2) return '应急基金不到 2 个月开销，一次意外就可能被迫折价卖资产。';
+      if (p.passive === 0) return '一整局没买任何资产。工资再高也只是主动收入，停了就没有了。';
+      return '现金流还算稳，下一步是让被动收入追上生活费（当前 ' + Math.round(freedomProgressOf(p) * 100) + '%）。';
     };
 
     const playerAdvice = G.players.map(p =>
-      '<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px dashed var(--line)">' +
-        '<div style="flex:0 0 auto;font-size:15px">' + p.emoji + '</div>' +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-weight:800;font-size:12px">' + esc(p.name) + '　<span style="color:#94a3b8;font-weight:600">' + esc(p.careerName) + '</span></div>' +
-          '<div style="font-size:11.5px;line-height:1.55;color:var(--text-2);margin-top:2px">' + advice(p) + '</div>' +
+      '<div class="advice-row">' +
+        '<div class="advice-face">' + (A ? A.face(faceOf(p, p.id)) : '') + '</div>' +
+        '<div class="advice-body">' +
+          '<div class="advice-name">' + esc(p.name) + '<span class="advice-career">' + esc(p.careerName) + '</span></div>' +
+          '<div class="advice-text">' + advice(p) + '</div>' +
         '</div>' +
       '</div>').join('');
 
     const title = byNetWorth
       ? '回合结束 · 自由进度排名'
-      : (humanWon ? '恭喜你，实现财务自由！' : top.emoji + ' ' + esc(top.name) + ' 率先自由了！');
+      : (humanWon ? '恭喜你，实现财务自由！' : esc(top.name) + ' 率先自由了！');
 
     card.innerHTML =
-      '<div class="result-medal">' + (byNetWorth ? '📊' : '🏆') + '</div>' +
+      '<div class="result-crown">' + (A ? A.decor.star('#ffd45e') : '🏆') + '</div>' +
       '<h2 class="result-title">' + title + '</h2>' +
       '<p class="result-sub">' +
         (byNetWorth
@@ -1762,10 +1773,10 @@
           (human[0] ? Math.round(freedomProgressOf(human[0]) * 100) : 0) + '%</div></div>' +
       '</div>' +
 
-      '<div style="font-size:11px;font-weight:900;color:#94a3b8;letter-spacing:1.2px;text-align:left;margin-bottom:8px">最终排名</div>' +
+      '<div class="result-sec-title">最终排名</div>' +
       '<div class="rank-list">' + ranks + '</div>' +
 
-      '<div class="teach" style="margin-bottom:12px">' +
+      '<div class="teach" style="margin-bottom:12px;text-align:left">' +
         '<div class="t-icon">🧭</div>' +
         '<div class="t-body">' +
           '<div class="t-title">逐一点评</div>' +
@@ -1773,7 +1784,7 @@
         '</div>' +
       '</div>' +
 
-      '<div class="teach" style="margin-bottom:16px">' +
+      '<div class="teach" style="margin-bottom:16px;text-align:left">' +
         '<div class="t-icon">🎓</div>' +
         '<div class="t-body">' +
           '<div class="t-title">这一局你学到了什么</div>' +
@@ -1788,11 +1799,12 @@
       '</div>' +
 
       '<div class="result-actions">' +
-        '<button class="btn btn-primary" id="btnPlayAgain">🔄 再来一局</button>' +
-        '<button class="btn btn-soft" id="btnBackHome">🏠 返回设置</button>' +
+        '<button class="btn btn-primary" id="btnPlayAgain">再来一局</button>' +
+        '<button class="btn btn-soft" id="btnBackHome">返回设置</button>' +
       '</div>';
 
     sc.classList.remove('hidden');
+    if (!byNetWorth) U.confetti(160);
     global.SFX.play(byNetWorth ? 'info' : 'win');
 
     document.getElementById('btnPlayAgain').onclick = () => {
@@ -1953,7 +1965,7 @@
     document.getElementById('gameScreen').classList.remove('hidden');
     document.getElementById('resultScreen').classList.add('hidden');
 
-    U.log('🎬 <b>游戏开始！</b>模式：' + D.MODES[G.mode].icon + ' ' + D.MODES[G.mode].name +
+    U.log('<i class="dot"></i><b>游戏开始！</b>模式：' + D.MODES[G.mode].icon + ' ' + D.MODES[G.mode].name +
           '　目标：让<b>被动收入 ≥ 生活费</b>', 'gold');
     G.players.forEach(p => {
       U.log(p.emoji + ' <b>' + p.name + '</b>（' + p.careerIcon + ' ' + p.careerName + '）起始工资 ' +

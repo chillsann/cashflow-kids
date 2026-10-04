@@ -43,6 +43,24 @@
     setTimeout(() => r(value), 60);
   }
 
+  /* 弹窗主图标 → 优先用矢量图，emoji 只作兜底 */
+  const MODAL_ART = {
+    '💰': 'salary', '🏦': 'bank', '💡': 'small', '📚': 'study',
+    '🏗️': 'big', '📊': 'market', '⚡': 'accident', '🎁': 'charity',
+    '🌈': 'landmark', '💼': 'parttime', '🏝️': 'landmark', '🏆': 'landmark',
+    '🎉': 'start', '🔔': 'market', '💸': 'market', '🏥': 'accident',
+    '📈': 'market', '📉': 'market', '🎯': 'start', '🎓': 'study',
+    '🧱': 'big', '🛒': 'spend', '🧸': 'spend', '💳': 'accident',
+  };
+
+  function renderModalIcon(icon) {
+    const el = modalIcon();
+    if (!el) return;
+    const type = MODAL_ART[icon];
+    if (type && global.Art) el.innerHTML = global.Art.cellIcon(type);
+    else el.textContent = icon || '💡';
+  }
+
   /**
    * 显示弹窗
    * @param {object} o
@@ -63,7 +81,7 @@
       clearModalTimers();
       modalResolve = resolve;
 
-      modalIcon().textContent  = o.icon || '💡';
+      renderModalIcon(o.icon);
       modalTitle().textContent = o.title || '';
       modalTitle().style.display = o.title ? '' : 'none';
       modalDesc().textContent  = o.desc || '';
@@ -175,11 +193,13 @@
      2. 棋盘渲染
      38 格环形棋盘，坐标由 data.js 的 ringCoord() 统一生成
      （14 × 7 网格的外圈，顺时针，首尾相接）。
+     每格用 SVG 插画 + 中文标签，替代纯文字。
      ====================================================================== */
 
   function buildBoard(cells, onClick) {
     const board = document.getElementById('board');
     board.innerHTML = '';
+    const A = global.Art;
     cells.forEach(cell => {
       const el = document.createElement('div');
       el.className = 'cell';
@@ -190,7 +210,7 @@
 
       el.innerHTML =
         '<div class="cell-inner">' +
-          '<div class="cell-icon">' + cell.icon + '</div>' +
+          '<div class="cell-icon">' + (A ? A.cellIcon(cell.type) : '') + '</div>' +
           '<div class="cell-name">' + cell.name + '</div>' +
           '<div class="cell-price" data-price="' + cell.index + '"></div>' +
         '</div>' +
@@ -203,15 +223,18 @@
 
   function renderTokens(players, exclude) {
     document.querySelectorAll('.tokens').forEach(t => (t.innerHTML = ''));
+    const A = global.Art;
     players.forEach((p, i) => {
       if (exclude != null && exclude.indexOf(i) >= 0) return;
       const holder = document.querySelector('.tokens[data-tokens="' + p.pos + '"]');
       if (!holder) return;
       const sp = document.createElement('span');
       sp.className = 'token';
-      sp.textContent = p.emoji;
       sp.title = p.name;
-      sp.style.filter = 'drop-shadow(0 1.5px 1px rgba(0,0,0,.35)) drop-shadow(0 0 4px ' + p.color + ')';
+      /* 棋子造型：玩家 0 用小车（主角），其余用立体小人 */
+      sp.innerHTML = A
+        ? A.token(i === 0 ? 'car' : 'pawn', p.color)
+        : (p.emoji || '');
       holder.appendChild(sp);
     });
   }
@@ -242,20 +265,63 @@
     const el = document.createElement('div');
     el.className = 'float-text';
     el.textContent = text;
-    el.style.color = color || '#1b2437';
+    el.style.color = color || '#2f2a3d';
     el.style.left = (a.left - s.left + a.width / 2) + 'px';
     el.style.top  = (a.top  - s.top  + a.height * 0.3) + 'px';
     stage.appendChild(el);
     setTimeout(() => el.remove(), 1050);
   }
 
+  /* 金币喷泉：收入 / 买入资产时的正反馈 */
+  function coinBurst(anchorEl, n) {
+    if (!anchorEl || !global.Art) return;
+    const stage = document.querySelector('.board-stage');
+    if (!stage) return;
+    const a = anchorEl.getBoundingClientRect();
+    const s = stage.getBoundingClientRect();
+    const cx = a.left - s.left + a.width / 2;
+    const cy = a.top - s.top + a.height / 2;
+    const colors = ['#ffd45e', '#f0ae2b', '#ffe9a8', '#e8a33d'];
+
+    for (let i = 0; i < (n || 7); i++) {
+      const c = document.createElement('div');
+      c.className = 'fly-coin';
+      c.style.left = cx + 'px';
+      c.style.top = cy + 'px';
+      c.style.setProperty('--dx', (Math.random() * 150 - 75) + 'px');
+      c.style.setProperty('--dy', (-70 - Math.random() * 70) + 'px');
+      c.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+      c.style.animationDelay = (i * 42) + 'ms';
+      c.style.background = colors[i % colors.length];
+      c.style.borderColor = '#b8801a';
+      c.innerHTML =
+        '<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+          '<circle cx="16" cy="16" r="14" fill="inherit" stroke="#2c2340" stroke-width="2.4"/>' +
+          '<text x="16" y="22" font-size="15" font-weight="800" text-anchor="middle" ' +
+            'fill="#8a5a08" font-family="system-ui,sans-serif">¥</text>' +
+        '</svg>';
+      stage.appendChild(c);
+      setTimeout(() => c.remove(), 1500 + i * 42);
+    }
+  }
+
   /* ======================================================================
      3. 玩家卡片
      ====================================================================== */
 
+  const FACE_OF = ['cat', 'dog', 'panda', 'fox', 'koala', 'frog'];
+
+  /* 从 emoji 或序号推断头像类型，保证每个玩家一张固定的脸 */
+  function faceOf(p, i) {
+    if (p.face) return p.face;
+    if (p.emoji && FACE_OF.indexOf(p.emoji) >= 0) return p.emoji;
+    return FACE_OF[i % FACE_OF.length];
+  }
+
   function renderPlayers(players, state, handlers) {
     const deck = document.getElementById('playersDeck');
     const showActions = state.showActions;
+    const A = global.Art;
 
     deck.innerHTML = players.map((p, i) => {
       const active = i === state.cur && !state.over;
@@ -264,6 +330,7 @@
       const interest = p.liabilities.reduce((s, l) => s + l.balance * l.rate, 0);
       const ncf = p.salary + p.passive - p.expenses - interest;
       const done = state.doneSet && state.doneSet.indexOf(i) >= 0;
+      const face = faceOf(p, i);
 
       const assetChips = p.assets.slice(0, 4).map(a =>
         '<span class="chip">' + a.icon + ' +' + fmt(a.income) + '</span>').join('');
@@ -273,22 +340,22 @@
         '<span class="chip liab">' + l.icon + ' −' + fmt(l.balance) + '</span>').join('');
 
       const statusTags = [];
-      if (p.insured) statusTags.push('<span class="tag">☂️ 已投保</span>');
-      if (p.charityStreak > 0) statusTags.push('<span class="tag">💝 善缘 ' + p.charityStreak + '</span>');
-      if (p.bankrupt) statusTags.push('<span class="tag danger">💔 已破产</span>');
+      if (p.insured) statusTags.push('<span class="tag">已投保</span>');
+      if (p.charityStreak > 0) statusTags.push('<span class="tag">善缘 ' + p.charityStreak + '</span>');
+      if (p.bankrupt) statusTags.push('<span class="tag danger">已破产</span>');
 
       return '' +
       '<div class="pcard' + (active ? ' active' : '') + (done ? ' turn-done' : '') + '" style="--pc:' + p.color + '">' +
         '<div class="pc-head">' +
-          '<div class="pc-avatar">' + p.emoji + '</div>' +
+          '<div class="pc-avatar">' + (A ? A.face(face) : (p.emoji || '')) + '</div>' +
           '<div class="pc-id">' +
             '<div class="pc-name">' + esc(p.name) + '</div>' +
             '<div class="pc-meta">' +
-              '<span class="tag ' + (p.isAI ? 'ai' : 'human') + '">' + (p.isAI ? '🤖 ' + p.persona.name : '👤 真人') + '</span>' +
-              '<span class="tag">' + p.careerIcon + ' ' + p.careerName + '</span>' +
+              '<span class="tag ' + (p.isAI ? 'ai' : 'human') + '">' + (p.isAI ? '电脑 · ' + p.persona.name : '真人') + '</span>' +
+              '<span class="tag pc-career">' + (A ? A.jobIcon(p.careerId) : '') + p.careerName + '</span>' +
             '</div>' +
           '</div>' +
-          (p.badges.length ? '<span class="tag crown">🏅 ' + p.badges.length + '</span>' : '') +
+          (p.badges.length ? '<span class="tag crown">' + p.badges.length + '</span>' : '') +
         '</div>' +
 
         '<div class="pc-freedom">' +
@@ -310,7 +377,7 @@
         '</div>' +
 
         '<div class="pc-ncf">' +
-          '<span class="lbl">💧 月净现金流</span>' +
+          '<span class="lbl">月净现金流</span>' +
           '<span class="val ' + (ncf >= 0 ? 'up' : 'down') + '">' + (ncf >= 0 ? '+' : '−') + fmt(Math.abs(ncf)) + '</span>' +
         '</div>' +
 
@@ -320,9 +387,9 @@
         (statusTags.length ? '<div class="pc-assets" style="padding-top:0">' + statusTags.join('') + '</div>' : '') +
 
         (showActions ? '<div class="pc-actions">' +
-          '<button class="btn btn-soft" data-act="detail" data-idx="' + i + '">📋 明细</button>' +
-          (p.assets.length ? '<button class="btn btn-soft" data-act="sell" data-idx="' + i + '">💱 卖资产</button>' : '') +
-          (p.liabilities.length ? '<button class="btn btn-soft" data-act="repay" data-idx="' + i + '">🔓 还负债</button>' : '') +
+          '<button class="btn btn-soft" data-act="detail" data-idx="' + i + '">明细</button>' +
+          (p.assets.length ? '<button class="btn btn-soft" data-act="sell" data-idx="' + i + '">卖资产</button>' : '') +
+          (p.liabilities.length ? '<button class="btn btn-soft" data-act="repay" data-idx="' + i + '">还负债</button>' : '') +
         '</div>' : '') +
       '</div>';
     }).join('');
@@ -407,6 +474,30 @@
   }
 
   /* ======================================================================
+     7.5 撒花特效（胜利 / 达成财务自由时）
+     ====================================================================== */
+  const CONFETTI_COLORS = ['#d99b2e', '#e0574c', '#3d7fc1', '#2f9e6b', '#8b5fbf', '#e08a2e', '#f2c14e'];
+
+  function confetti(count) {
+    const box = document.getElementById('confetti');
+    if (!box) return;
+    const n = count || 90;
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) {
+      const bit = document.createElement('i');
+      bit.style.left = Math.random() * 100 + 'vw';
+      bit.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      bit.style.animationDuration = (2.2 + Math.random() * 2.2) + 's';
+      bit.style.animationDelay = (Math.random() * 0.9) + 's';
+      bit.style.opacity = (0.65 + Math.random() * 0.35);
+      if (Math.random() > 0.6) bit.style.borderRadius = '50%';
+      frag.appendChild(bit);
+    }
+    box.appendChild(frag);
+    setTimeout(() => { box.innerHTML = ''; }, 5200);
+  }
+
+  /* ======================================================================
      8. 三体骰子
      ====================================================================== */
 
@@ -450,13 +541,13 @@
     const map = {
       1: { x: 0,   y: 0 },
       2: { x: 0,   y: -90 },
-      3: { x: 0,   y: 180 },
-      4: { x: 0,   y: 90 },
-      5: { x: -90, y: 0 },
-      6: { x: 90,  y: 0 },
+      3: { x: -90, y: 0 },
+      4: { x: 90,  y: 0 },
+      5: { x: 0, y: 90 },
+      6: { x: 0, y: 180 },
     };
     const t = map[value] || map[1];
-    cube.style.transform = 'rotateX(' + (t.x - 12) + 'deg) rotateY(' + (t.y - 18) + 'deg)';
+    cube.style.transform = 'rotateX(' + (t.x - 8) + 'deg) rotateY(' + (t.y - 10) + 'deg)';
   }
 
   async function rollDiceAnimation(finalValue) {
@@ -475,13 +566,13 @@
     const map = {
       1: { x: 0,   y: 0 },
       2: { x: 0,   y: -90 },
-      3: { x: 0,   y: 180 },
-      4: { x: 0,   y: 90 },
-      5: { x: -90, y: 0 },
-      6: { x: 90,  y: 0 },
+      3: { x: -90, y: 0 },
+      4: { x: 90,  y: 0 },
+      5: { x: 0, y: 90 },
+      6: { x: 0, y: 180 },
     };
     const t = map[finalValue] || map[1];
-    cube.style.transform = 'rotateX(' + (360 * 2 + t.x - 12) + 'deg) rotateY(' + (360 * 3 + t.y - 18) + 'deg)';
+    cube.style.transform = 'rotateX(' + (360 * 2 + t.x - 8) + 'deg) rotateY(' + (360 * 3 + t.y - 10) + 'deg)';
     await sleep(560);
   }
 
@@ -639,13 +730,13 @@
   global.UI = {
     modal, closeModal,
     buildBoard, renderTokens, highlightCell, clearHighlight, updateCellPrice,
-    floatText,
+    floatText, coinBurst, confetti,
     renderPlayers, renderBadges, popBadge,
     log, clearLog, setNews, setTopStats, setText,
     toast,
     buildDice, diceTo, rollDiceAnimation,
     startCoach, advanceCoach, endCoach,
-    freedomViz,
+    freedomViz, faceOf,
     esc, fmt, sleep,
   };
 

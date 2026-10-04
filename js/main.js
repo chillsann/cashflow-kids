@@ -52,17 +52,21 @@
 
     // 玩家列表
     const list = document.getElementById('playerSetupList');
+    const A = global.Art;
     list.innerHTML = CFG.players.map((p, i) => {
       const career = p.career || D.CAREERS[i % D.CAREERS.length];
       return '<div class="player-setup" data-idx="' + i + '">' +
-        '<div class="ps-avatar">' + D.PLAYER_EMOJIS[i % D.PLAYER_EMOJIS.length] + '</div>' +
+        '<div class="ps-avatar" style="border-color:' + D.PLAYER_COLORS[i % D.PLAYER_COLORS.length] + '">' +
+          (A ? A.face(D.PLAYER_FACES[i % D.PLAYER_FACES.length]) : '') +
+        '</div>' +
         '<div class="ps-fields">' +
           '<input class="ps-name" data-idx="' + i + '" value="' + U.esc(p.name) + '" maxlength="10" placeholder="输入名字">' +
           '<div class="ps-role">' +
-            '<button data-idx="' + i + '" data-role="human" class="' + (p.isAI ? '' : 'active') + '">👤 真人</button>' +
-            '<button data-idx="' + i + '" data-role="ai" class="' + (p.isAI ? 'active' : '') + '">🤖 电脑</button>' +
-            '<button data-idx="' + i + '" data-career="1" style="border-color:#e5e9f0;color:#6b7a90" title="换一个职业">' +
-              career.icon + ' ' + career.name + ' 🔄</button>' +
+            '<button data-idx="' + i + '" data-role="human" class="' + (p.isAI ? '' : 'active') + '">真人</button>' +
+            '<button data-idx="' + i + '" data-role="ai" class="' + (p.isAI ? 'active' : '') + '">电脑</button>' +
+            '<button data-idx="' + i + '" data-career="1" title="换一个职业" class="ps-career">' +
+              (A ? A.jobIcon(career.id) : '') + '<span>' + career.name + '</span> ⟳' +
+            '</button>' +
           '</div>' +
         '</div>' +
         (i >= 2 ? '<button class="ps-remove" data-remove="' + i + '" title="移除">✕</button>' : '') +
@@ -389,10 +393,31 @@
     bindSetup();
     renderSetup();
     syncSoundFab();
+    paintBrandLogo();
+    paintBoardSlot();
 
     // 首次交互解锁音频
     const unlock = () => { global.SFX.unlock(); document.removeEventListener('pointerdown', unlock); };
     document.addEventListener('pointerdown', unlock);
+  }
+
+  function paintBrandLogo() {
+    const el = document.getElementById('brandLogo');
+    if (el && global.Art) el.innerHTML = global.Art.decor.coin('#ffd45e');
+  }
+
+  /* 窄屏时棋盘中央显示的桌游铭牌 */
+  function paintBoardSlot() {
+    const el = document.getElementById('boardSlot');
+    if (!el || !global.Art) return;
+    const A = global.Art;
+    el.innerHTML =
+      '<div class="slot-coins">' +
+        A.decor.coin('#ffd45e') + A.decor.coin('#f0ae2b') + A.decor.coin('#ffe9a8') +
+      '</div>' +
+      '<div class="slot-logo">现金流<br>小富翁</div>' +
+      '<div class="slot-rule"></div>' +
+      '<div class="slot-sub">让钱为你工作</div>';
   }
 
   if (document.readyState === 'loading') {

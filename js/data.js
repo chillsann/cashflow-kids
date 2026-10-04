@@ -544,8 +544,10 @@
      十八、常量
      ====================================================================== */
   const BOARD_SIZE = 38;
-  const PLAYER_COLORS  = ['#4f6ef7', '#e8813a', '#17a673', '#e34b6d', '#8b5cf0', '#0e89b8'];
+  const PLAYER_COLORS  = ['#e0574c', '#3d7fc1', '#2f9e6b', '#e08a2e', '#8b5fbf', '#2aa5a0'];
   const PLAYER_EMOJIS  = ['🐱', '🐶', '🐼', '🦊', '🐨', '🐸'];
+  /* 每个玩家对应一张固定的动物脸（SVG 绘制，见 art.js） */
+  const PLAYER_FACES   = ['cat', 'dog', 'panda', 'fox', 'koala', 'frog'];
   const DEBT_RATE      = 0.020;   // 每期负债利息率（默认 2.0%，约合年化 24%，接近真实的消费贷 / 信用贷水平）
   const EMERGENCY_LOAN = 12000;   // 现金为负时的紧急贷款额度
   const INSURANCE_COST = 1500;    // 保险费用
@@ -562,7 +564,7 @@
     SPEND_CARDS, ACCIDENT_CARDS, MARKET_EVENTS, MARKET_OFFERS,
     STUDY_OFFERS, CHARITY_CARDS, DREAMS, PARTTIME_CARDS,
     TIPS, BADGES, AI_PERSONAS, MODES,
-    BOARD_SIZE, PLAYER_COLORS, PLAYER_EMOJIS,
+    BOARD_SIZE, PLAYER_COLORS, PLAYER_EMOJIS, PLAYER_FACES,
     DEBT_RATE, EMERGENCY_LOAN, INSURANCE_COST, INSURANCE_COVER,
     START_BONUS, DREAM_BONUS,
   };
