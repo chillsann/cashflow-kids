@@ -1,0 +1,178 @@
+/* ==========================================================================
+   梦想小镇大富翁 · HUD 层
+   玩家卡 / 手牌栏 / 财务报表 / 日志 / 银行面板 / 股票面板
+   ========================================================================== */
+
+/* ==========================================================================
+   头像组件：图片优先，失败自动露出 emoji 兜底
+   ========================================================================== */
+.av {
+  position: relative; display: inline-grid; place-items: center;
+  width: 100%; height: 100%; line-height: 1;
+}
+.av img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; object-position: center 42%;
+  border-radius: inherit; pointer-events: none;
+}
+.av-fb { font-size: inherit; line-height: 1; }
+
+/* ── 玩家卡 ── */
+.players-deck { padding: 10px; display: grid; gap: 8px; }
+.pcard {
+  border-radius: var(--r-sm); padding: 9px 10px;
+  background: var(--bg); border-left: 4px solid var(--pc);
+  transition: .16s; cursor: pointer;
+}
+.pcard:hover { background: #f0f3fa; }
+.pcard.active {
+  background: linear-gradient(135deg, #fff, #f7f9ff);
+  box-shadow: 0 0 0 2px var(--pc);
+}
+.pcard.out { opacity: .55; filter: grayscale(.6); }
+
+.pc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pc-av {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--pc);
+  display: grid; place-items: center; font-size: 15px; color: #fff; flex: 0 0 auto;
+  overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.16);
+}
+.pc-av .av img { border-radius: 50%; }
+.pc-id { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pc-id b { font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-id span { font-size: 9.5px; color: var(--muted-2); }
+.pc-tag {
+  font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px;
+  background: var(--brand-soft); color: var(--brand); white-space: nowrap;
+}
+.pc-tag.bad { background: #fdecec; color: var(--up); }
+
+.pc-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 6px; }
+.pc-nums > div { text-align: center; background: #fff; border-radius: 6px; padding: 4px 2px; }
+.pc-nums b { display: block; font-size: 12px; font-weight: 900; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pc-nums span { font-size: 8.5px; color: var(--muted-2); }
+
+/* 财务自由进度条（保留教育内核） */
+.pc-freedom { margin-bottom: 5px; }
+.pf-label { font-size: 9.5px; color: var(--text-2); margin-bottom: 3px; }
+.pf-label b { color: var(--up); font-variant-numeric: tabular-nums; }
+.pf-bar { height: 5px; background: #e8ecf4; border-radius: 999px; overflow: hidden; }
+.pf-bar i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #ffd166, var(--up));
+  transition: width .4s ease;
+}
+
+.pc-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.pct {
+  font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 5px;
+  background: #fff; color: var(--text-2);
+}
+.pct.down { color: var(--down); }
+.pct.bad { background: #fdecec; color: var(--up); }
+
+/* ── 手牌栏 ── */
+.hand-bar {
+  margin-top: 10px; background: #fff; border-radius: var(--r);
+  box-shadow: var(--shadow); padding: 8px 12px; min-height: 56px;
+}
+.hand-title { font-size: 11px; font-weight: 900; color: var(--text-2); margin-bottom: 6px; }
+.hand-empty { font-size: 11.5px; color: var(--muted-2); padding: 8px 0; }
+.hand-list { display: flex; gap: 6px; flex-wrap: wrap; }
+.psc-emoji, .ps-av { font-size: 20px; }
+.psc-emoji .av img, .ps-av .av img { border-radius: 50%; }
+.ps-av { overflow: hidden; }
+
+.hcard {
+  border: 2px solid var(--line); background: #fff; cursor: pointer; font-family: inherit;
+  border-radius: 10px; padding: 6px 10px; transition: .14s;
+  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 62px;
+}
+.hcard:hover { border-color: var(--brand); transform: translateY(-2px); box-shadow: 0 4px 10px rgba(79,110,247,.18); }
+.hc-icon { font-size: 18px; }
+.hc-name { font-size: 10px; font-weight: 800; color: var(--ink); }
+
+/* ── 财务报表 ── */
+.rpt-who {
+  font-size: 12.5px; font-weight: 900; color: var(--ink);
+  padding: 4px 6px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px;
+}
+.rpt-who span { font-size: 10.5px; font-weight: 600; color: var(--muted-2); margin-left: 4px; }
+
+.rpt-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.rpt-table th {
+  font-size: 10px; font-weight: 900; color: var(--muted-2); text-align: right;
+  padding: 4px 6px; border-bottom: 1px solid var(--line);
+}
+.rpt-table th:first-child { text-align: left; }
+.rpt-table td {
+  padding: 5px 6px; border-bottom: 1px solid #f0f3f8;
+  font-variant-numeric: tabular-nums; text-align: right; color: var(--text);
+}
+.rpt-table td:first-child { text-align: left; color: var(--text-2); }
+.rpt-table tr.total td { font-weight: 900; color: var(--ink); background: #fafbfe; }
+.rpt-table tr.heading td {
+  background: #fff; font-size: 10px; font-weight: 900; letter-spacing: 1px;
+  color: var(--brand); padding-top: 10px; border-bottom: none;
+}
+.rpt-table tr.note-row td {
+  display: block; padding: 4px 6px 8px; font-size: 10px; line-height: 1.55;
+  color: var(--muted-2); font-weight: 600; border-bottom: none; text-align: left;
+}
+.rpt-table .up { color: var(--up); font-weight: 800; }
+.rpt-table .down { color: var(--down); font-weight: 800; }
+.rpt-table .muted { color: var(--muted-2); font-weight: 600; }
+.rpt-table .you { background: var(--brand-soft); }
+
+/* ── 日志 ── */
+.log { font-size: 11.5px; line-height: 1.6; }
+.log-line { padding: 3px 0; border-bottom: 1px dashed #f0f3f8; color: var(--text-2); }
+.log-time { font-size: 9.5px; color: var(--muted-2); margin-right: 5px; font-variant-numeric: tabular-nums; }
+.log-line.up b, .log-line.up .n { color: var(--up); }
+.log-line.down b, .log-line.down .n { color: var(--down); }
+.log-line.gold { color: var(--gold); font-weight: 700; }
+.log-line.warn { color: var(--warn); }
+.log-line.win { color: var(--up); font-weight: 800; }
+.log-line b { color: var(--ink); }
+
+/* ── 银行面板 ── */
+.bank-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.bank-card { background: var(--bg); border-radius: var(--r-sm); padding: 12px; }
+.bc-title { font-size: 12px; font-weight: 900; color: var(--text-2); margin-bottom: 4px; }
+.bc-val { font-size: 19px; font-weight: 900; color: var(--ink); font-variant-numeric: tabular-nums; }
+.bc-note { font-size: 10.5px; color: var(--muted-2); margin-bottom: 8px; }
+.bc-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ── 股票面板 ── */
+.stock-list { display: grid; gap: 10px; }
+.stock-row {
+  background: var(--bg); border-radius: var(--r-sm); padding: 10px 12px;
+  display: grid; gap: 6px;
+}
+.sr-head { display: flex; align-items: center; gap: 8px; }
+.sr-icon { font-size: 18px; }
+.sr-head b { font-size: 13px; color: var(--ink); }
+.sr-price {
+  margin-left: auto; font-size: 15px; font-weight: 900; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.sr-chg { font-size: 11px; font-weight: 800; }
+.sr-chg.up { color: var(--up); }
+.sr-chg.down { color: var(--down); }
+.spark { width: 100%; height: 34px; display: block; }
+.sr-pos { font-size: 11px; color: var(--text-2); }
+.sr-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+
+@media (max-width: 700px) {
+  .bank-grid { grid-template-columns: 1fr; }
+  .players-deck { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .players-deck { grid-template-columns: 1fr; }
+  .hand-list { gap: 4px; }
+  .psc-emoji, .ps-av { font-size: 20px; }
+.psc-emoji .av img, .ps-av .av img { border-radius: 50%; }
+.ps-av { overflow: hidden; }
+
+.hcard { min-width: 54px; padding: 5px 7px; }
+}

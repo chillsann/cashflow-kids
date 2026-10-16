@@ -1,6 +1,6 @@
 /* ==========================================================================
-   现金流小富翁 · 音效层
-   使用 WebAudio 现场合成，无外部资源依赖。
+   现金流小富翁 v2 · WebAudio 程序合成音效
+   零外部资源，全部用振荡器实时合成
    ========================================================================== */
 (function (global) {
   'use strict';
@@ -9,155 +9,99 @@
   let enabled = true;
   let master = null;
 
-  function ensure() {
-    if (!enabled) return null;
+  function unlock() {
     if (!ctx) {
-      const AC = global.AudioContext || global.webkitAudioContext;
-      if (!AC) return null;
-      try {
-        ctx = new AC();
-        master = ctx.createGain();
-        master.gain.value = 0.22;
-        master.connect(ctx.destination);
-      } catch (e) { return null; }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0.22;
+      master.connect(ctx.destination);
     }
-    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    return ctx;
+    if (ctx.state === 'suspended') ctx.resume();
   }
 
-  /* 播放一个音符 */
-  function tone(freq, dur, type, gainMul, delay, freqEnd) {
-    const c = ensure();
-    if (!c) return;
-    const t0 = c.currentTime + (delay || 0);
-    const osc = c.createOscillator();
-    const g = c.createGain();
+  function tone(freq, dur, type, vol, delay, slideTo) {
+    if (!enabled || !ctx) return;
+    const t0 = ctx.currentTime + (delay || 0);
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
     osc.type = type || 'sine';
     osc.frequency.setValueAtTime(freq, t0);
-    if (freqEnd) {
-      osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), t0 + dur);
-    }
-    const peak = (gainMul == null ? 1 : gainMul);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(peak, t0 + Math.min(0.02, dur * 0.25));
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t0 + dur);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol == null ? 0.6 : vol, t0 + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(g);
-    g.connect(master);
-    osc.start(t0);
-    osc.stop(t0 + dur + 0.03);
+    osc.connect(g); g.connect(master);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
   }
 
-  /* 噪声（用于骰子滚动 / 卡片） */
-  function noise(dur, gainMul, delay, filterFreq) {
-    const c = ensure();
-    if (!c) return;
-    const t0 = c.currentTime + (delay || 0);
-    const len = Math.floor(c.sampleRate * dur);
-    const buf = c.createBuffer(1, len, c.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / len);
-    }
-    const src = c.createBufferSource();
+  function noise(dur, vol, delay) {
+    if (!enabled || !ctx) return;
+    const t0 = ctx.currentTime + (delay || 0);
+    const len = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ctx.createBufferSource();
     src.buffer = buf;
-    const f = c.createBiquadFilter();
-    f.type = 'bandpass';
-    f.frequency.value = filterFreq || 1800;
-    f.Q.value = 0.9;
-    const g = c.createGain();
-    g.gain.value = gainMul == null ? 0.6 : gainMul;
-    src.connect(f); f.connect(g); g.connect(master);
+    const g = ctx.createGain();
+    g.gain.value = vol == null ? 0.3 : vol;
+    src.connect(g); g.connect(master);
     src.start(t0);
   }
 
   const SFX = {
-    /* 骰子滚动 */
-    dice() {
-      for (let i = 0; i < 6; i++) {
-        noise(0.05, 0.35, i * 0.075, 1400 + Math.random() * 1600);
-      }
-    },
-    /* 落格 */
-    land() {
-      tone(520, 0.09, 'triangle', 0.5);
-      tone(780, 0.13, 'triangle', 0.35, 0.06);
-    },
-    /* 移动一步 */
-    step() {
-      tone(660, 0.035, 'square', 0.12);
-    },
-    /* 收钱 / 收入（上行三音） */
-    income() {
-      tone(523.25, 0.11, 'sine', 0.7, 0);
-      tone(659.25, 0.11, 'sine', 0.7, 0.085);
-      tone(783.99, 0.20, 'sine', 0.75, 0.17);
-    },
-    /* 花钱 / 支出（下行双音） */
-    expense() {
-      tone(392.00, 0.13, 'sine', 0.65, 0);
-      tone(293.66, 0.24, 'sine', 0.6, 0.10);
-    },
-    /* 买入资产（清脆） */
-    buy() {
-      tone(880, 0.08, 'triangle', 0.6, 0);
-      tone(1174.66, 0.16, 'triangle', 0.55, 0.07);
-      tone(1567.98, 0.20, 'sine', 0.4, 0.14);
-    },
-    /* 出售 / 变现 */
-    sell() {
-      tone(1046.5, 0.09, 'triangle', 0.5, 0);
-      tone(783.99, 0.14, 'triangle', 0.5, 0.07);
-    },
-    /* 按钮 */
-    click() { tone(1200, 0.03, 'square', 0.1); },
-    /* 提示 / 信息 */
-    info() { tone(880, 0.09, 'sine', 0.32); tone(1108.73, 0.11, 'sine', 0.28, 0.07); },
-    /* 警告 / 意外 */
-    alert() {
-      tone(340, 0.13, 'sawtooth', 0.35, 0);
-      tone(300, 0.16, 'sawtooth', 0.32, 0.13);
-    },
-    /* 转机 / 好运 */
-    lucky() {
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
-        tone(f, 0.16, 'sine', 0.6, i * 0.075));
-    },
-    /* 成就解锁 */
-    badge() {
-      [659.25, 830.61, 987.77, 1318.51].forEach((f, i) =>
-        tone(f, 0.22, 'triangle', 0.5, i * 0.09));
-    },
-    /* 胜利 */
-    win() {
-      const seq = [523.25, 659.25, 783.99, 1046.5, 1318.51];
-      seq.forEach((f, i) => {
-        tone(f, 0.30, 'sine', 0.62, i * 0.15);
-        tone(f / 2, 0.30, 'triangle', 0.24, i * 0.15);
-      });
-      tone(1567.98, 0.9, 'sine', 0.5, 0.78);
-    },
-    /* 失败 / 亏损 */
-    fail() {
-      tone(392, 0.24, 'sawtooth', 0.32, 0);
-      tone(311.13, 0.30, 'sawtooth', 0.3, 0.18);
-      tone(233.08, 0.55, 'sine', 0.34, 0.36);
-    },
-    /* 回合切换 */
-    turn() { tone(587.33, 0.07, 'sine', 0.28); tone(880, 0.09, 'sine', 0.22, 0.06); },
+    /* 基础 */
+    click:   () => tone(660, 0.06, 'square', 0.25),
+    dice:    () => { noise(0.18, 0.22); tone(320, 0.12, 'triangle', 0.3, 0.05); tone(480, 0.1, 'triangle', 0.25, 0.14); },
+    step:    () => tone(520, 0.05, 'sine', 0.18),
+    land:    () => { tone(300, 0.1, 'sine', 0.35); tone(200, 0.14, 'sine', 0.25, 0.06); },
+    turn:    () => tone(440, 0.12, 'sine', 0.22),
+    start:   () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', 0.3, i * 0.11)); },
+
+    /* 金钱 */
+    income:  () => { tone(880, 0.09, 'sine', 0.3); tone(1174, 0.12, 'sine', 0.28, 0.08); },
+    expense: () => { tone(400, 0.1, 'sine', 0.28, 0); tone(300, 0.14, 'sine', 0.24, 0.09); },
+    buy:     () => { tone(520, 0.08, 'triangle', 0.28); tone(780, 0.1, 'triangle', 0.26, 0.07); },
+    sell:    () => { tone(700, 0.08, 'triangle', 0.26); tone(520, 0.1, 'triangle', 0.24, 0.07); },
+    rent:    () => { [660, 880, 1100].forEach((f, i) => tone(f, 0.1, 'square', 0.16, i * 0.07)); },
+
+    /* 建造 */
+    build:   () => { noise(0.1, 0.2); tone(300, 0.1, 'square', 0.2, 0.04); tone(450, 0.1, 'square', 0.2, 0.12); tone(600, 0.14, 'triangle', 0.24, 0.2); },
+
+    /* 卡片 / 事件 */
+    card:    () => { tone(900, 0.07, 'square', 0.2); tone(1200, 0.09, 'square', 0.18, 0.06); },
+    info:    () => tone(700, 0.1, 'sine', 0.24),
+    alert:   () => { tone(300, 0.16, 'sawtooth', 0.22); tone(240, 0.2, 'sawtooth', 0.2, 0.12); },
+    lucky:   () => { [784, 988, 1319].forEach((f, i) => tone(f, 0.14, 'triangle', 0.26, i * 0.08)); },
+    badge:   () => { [880, 1108, 1318, 1760].forEach((f, i) => tone(f, 0.13, 'sine', 0.24, i * 0.07)); },
+
+    /* 股票 */
+    stockUp:   () => { tone(700, 0.09, 'sine', 0.24); tone(1000, 0.12, 'sine', 0.22, 0.08); },
+    stockDown: () => { tone(500, 0.1, 'sine', 0.24); tone(330, 0.14, 'sine', 0.22, 0.09); },
+
+    /* 神明 */
+    god:     () => { [523, 659, 880].forEach((f, i) => tone(f, 0.3, 'sine', 0.2, i * 0.1)); },
+
+    /* 特殊 */
+    jail:    () => { tone(180, 0.25, 'square', 0.22); tone(140, 0.3, 'square', 0.2, 0.18); },
+    lottery: () => { for (let i = 0; i < 5; i++) tone(600 + i * 120, 0.08, 'triangle', 0.2, i * 0.06); },
+
+    /* 结局 */
+    win:     () => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.3, 'triangle', 0.3, i * 0.13)); },
+    fail:    () => { tone(300, 0.3, 'sawtooth', 0.24); tone(200, 0.4, 'sawtooth', 0.2, 0.2); tone(140, 0.5, 'sawtooth', 0.18, 0.4); },
   };
 
-  global.SFX = {
-    play(name) {
-      if (!enabled) return;
-      const fn = SFX[name];
-      if (fn) { try { fn(); } catch (e) {} }
-    },
-    setEnabled(v) {
-      enabled = !!v;
-      if (enabled) ensure();
-    },
-    isEnabled() { return enabled; },
-    unlock() { ensure(); },
-  };
+  function play(name) {
+    if (!enabled) return;
+    unlock();
+    const fn = SFX[name];
+    if (fn) { try { fn(); } catch (e) {} }
+  }
 
+  function setEnabled(v) { enabled = !!v; if (v) unlock(); }
+  function isEnabled() { return enabled; }
+
+  global.SFX = { play, setEnabled, isEnabled, unlock };
 })(window);

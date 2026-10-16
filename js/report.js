@@ -1,195 +1,214 @@
 /* ==========================================================================
-   现金流小富翁 · 财务报表层
-   把玩家状态渲染成两张真正的报表：
-     1) 收支表（Income Statement）
-     2) 资产负债表（Balance Sheet）
-   —— 这是本游戏最重要的「教育输出」。
+   现金流小富翁 v2 · 财务报表层
+   收支表（Income Statement）· 资产负债表（Balance Sheet）
+   —— 大富翁化之后仍然保留的教育内核：让孩子看懂「租金＝被动收入」
    ========================================================================== */
 (function (global) {
   'use strict';
 
-  const fmt  = n => Math.round(n).toLocaleString('zh-CN');
+  const fmt = n => Math.round(n).toLocaleString('zh-CN');
   const sign = n => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+
+  let tab = 'cashflow';
+  let viewIdx = 0;      // 查看哪位玩家
+
+  function setTab(t) { tab = t; }
+  function setView(i) { viewIdx = i; }
 
   /* ----------------------------------------------------------------------
-     收支表
-     设计要点（教育考量）：
-     不动产等带按揭的资产，其「月供」直接归属于该资产，而不是另立一行。
-     报表按「租金收入 − 月供 = 净收益」展示，让孩子一眼看懂
-     「这套房到底每个月给我留下多少钱」。
+     收支表：本圈（本轮）现金流
+     口径：一圈 ≈ 一个月。租金 = 被动收入；津贴 = 主动收入。
      ---------------------------------------------------------------------- */
   function cashflowRows(p) {
-    const interest = p.liabilities.reduce((s, l) => s + (l.balance * l.rate), 0);
-    const totalIncome = p.salary + p.passive;
-    const totalExpense = p.expenses + interest;
+    const G = global.Engine.G;
+    const B = global.CFWorld.BALANCE;
+
+    /* 被动收入：地产租金（按当前等级估算单次过路费）+ 特殊建筑 */
+    const rentRows = [];
+    let passive = 0;
+    p.estateIds.forEach(i => {
+      const c = G.map[i];
+      if (!c) return;
+      if (c.type === 'estate') {
+        const r = global.Estate.rentOf(c);
+        passive += r;
+        rentRows.push({ label: c.icon + ' ' + c.name + '（L' + c.level + '）', value: sign(r), cls: 'up' });
+      } else if (c.type === 'special' && c.building === 'resort') {
+        passive += 3000;
+        rentRows.push({ label: '🏝️ 度假饭店住宿费', value: sign(3000), cls: 'up' });
+      }
+    });
+
+    /* 股票分红 */
+    let dividend = 0;
+    Object.keys(p.stocks).forEach(id => {
+      const h = p.stocks[id];
+      if (h.shares > 0 && G.market[id]) dividend += h.shares * G.market[id].price * B.stockDividend;
+    });
+    dividend = Math.round(dividend);
+
+    const depositInt = Math.round(p.deposit * B.depositRate);
+    const totalIncome = p.char.salary + passive + dividend + depositInt;
+
+    /* 支出 */
+    const loanInt = Math.round(p.loan * B.loanRate);
+    const living = B.livingCost;
+    const totalExpense = living + loanInt;
+
     const ncf = totalIncome - totalExpense;
 
     const rows = [];
-    rows.push({ kind: 'heading', label: '收入' });
-
-    // 工资
-    rows.push({ label: '💼 工资收入（主动收入）', value: sign(p.salary), cls: 'up' });
-
-    // 资产：按类别分组，展示净收益
-    if (!p.assets.length) {
-      rows.push({ label: '（暂无资产，快去小机会 / 大机会格买一个）', value: '—', cls: 'muted' });
+    rows.push({ kind: 'heading', label: '收入（每月）' });
+    rows.push({ label: '💼 津贴收入（主动收入）', value: sign(p.char.salary), cls: 'up' });
+    if (!rentRows.length) {
+      rows.push({ label: '（暂无地产，去棋盘上买一块吧）', value: '—', cls: 'muted' });
     } else {
-      p.assets.forEach(a => {
-        const tag = (a.tags || []).includes('realestate') ? '（租金）' : '';
-        rows.push({
-          label: a.icon + ' ' + a.name + tag,
-          value: sign(a.income) + ' /月',
-          cls: a.income >= 0 ? 'up' : 'down',
-        });
-      });
+      rentRows.forEach(r => rows.push(r));
     }
-    rows.push({ kind: 'subtotal', label: '📈 被动收入合计', value: sign(p.passive), cls: 'up' });
+    rows.push({ kind: 'subtotal', label: '📈 被动收入合计（租金）', value: sign(passive), cls: 'up' });
+    if (dividend > 0) rows.push({ label: '🎫 股票分红（市值 × 0.5%）', value: sign(dividend), cls: 'up' });
+    if (depositInt > 0) rows.push({ label: '🏦 存款利息', value: sign(depositInt), cls: 'up' });
     rows.push({ kind: 'subtotal', label: '收入合计', value: sign(totalIncome), cls: 'up' });
 
-    rows.push({ kind: 'heading', label: '支出' });
-    rows.push({ label: '🍚 生活支出（吃住行学费）', value: '−' + fmt(p.expenses), cls: 'down' });
-    if (p.baseExpenses && p.expenses > p.baseExpenses + 1) {
-      rows.push({
-        label: '　└ 其中：物价上涨 / 通胀累积',
-        value: '+' + fmt(p.expenses - p.baseExpenses) + ' /月',
-        cls: 'down',
-      });
-    }
-    p.liabilities.forEach(l => {
-      const pay = l.balance * l.rate;
-      rows.push({
-        label: '🏦 ' + l.name + '（月供利息 ' + (l.rate * 100).toFixed(1) + '%）',
-        value: '−' + fmt(pay),
-        cls: 'down',
-      });
-    });
-    if (!p.liabilities.length) {
-      rows.push({ label: '（无负债，不用付利息 👍）', value: '0', cls: 'muted' });
+    rows.push({ kind: 'heading', label: '支出（每月）' });
+    rows.push({ label: '🍚 生活开销', value: '−' + fmt(living), cls: 'down' });
+    if (loanInt > 0) {
+      rows.push({ label: '🏦 贷款利息（' + (B.loanRate * 100).toFixed(0) + '% / 月）', value: '−' + fmt(loanInt), cls: 'down' });
+    } else {
+      rows.push({ label: '（无贷款，不用付利息 👍）', value: '0', cls: 'muted' });
     }
     rows.push({ kind: 'subtotal', label: '支出合计', value: '−' + fmt(totalExpense), cls: 'down' });
 
-    rows.push({
-      kind: 'total',
-      label: '💰 每月净现金流',
-      value: sign(ncf),
-      cls: ncf >= 0 ? 'up' : 'down',
-    });
-    rows.push({
-      kind: 'subtotal',
-      label: '🎯 财务自由线：被动收入 ÷ 生活支出',
-      value: (p.expenses > 0 ? Math.round((p.passive / p.expenses) * 100) : 0) + '%',
-      cls: p.passive >= p.expenses ? 'up' : 'muted',
-    });
-    rows.push({
-      kind: 'note',
-      label: '　达到 100% 就实现财务自由。注意：被动收入要「单独」盖住生活费，工资不算数。',
-      value: '',
-    });
+    rows.push({ kind: 'total', label: '💰 每月净现金流', value: sign(ncf), cls: ncf >= 0 ? 'up' : 'down' });
 
-    return { rows: rows, ncf: ncf, interest: interest, totalIncome: totalIncome, totalExpense: totalExpense };
+    const pct = passive > 0 ? Math.round(passive / living * 100) : 0;
+    rows.push({ kind: 'subtotal', label: '🎯 财务自由：被动收入 ÷ 生活开销', value: pct + '%',
+      cls: passive >= living ? 'up' : 'muted' });
+    rows.push({ kind: 'note', label: '　租金是「睡着了也在赚」的钱。达到 100% 表示：就算不掷骰子，你也活得下去。' });
+
+    return { rows, ncf, passive, totalIncome, totalExpense };
   }
 
   /* ----------------------------------------------------------------------
      资产负债表
      ---------------------------------------------------------------------- */
   function balanceRows(p) {
-    const totalAssets = p.cash + p.assets.reduce((s, a) => s + a.value, 0);
-    const totalLiab = p.liabilities.reduce((s, l) => s + l.balance, 0);
-    const netWorth = totalAssets - totalLiab;
-
+    const G = global.Engine.G;
     const rows = [];
+    let assetSum = p.cash + p.deposit;
+
     rows.push({ kind: 'heading', label: '资产' });
-    rows.push({ label: '💵 现金', value: fmt(p.cash), cls: '' });
-    p.assets.forEach(a => {
-      rows.push({ label: a.icon + ' ' + a.name, value: fmt(a.value), cls: '' });
+    rows.push({ label: '💵 现金', value: fmt(p.cash) });
+    if (p.deposit) rows.push({ label: '🏦 银行存款', value: fmt(p.deposit) });
+
+    let estateValue = 0;
+    p.estateIds.forEach(i => {
+      const c = G.map[i];
+      if (!c) return;
+      if (c.type === 'estate') {
+        const v = Math.round(c.price + c.level * c.buildCost * 0.8);
+        estateValue += v;
+        rows.push({ label: c.icon + ' ' + c.name + '（L' + c.level + '）' + (c.mortgaged ? ' 🔒' : ''), value: fmt(v) });
+      } else if (c.type === 'special' && c.building) {
+        const b = global.CFWorld.SPECIAL_BUILDINGS[c.building];
+        const v = Math.round(b.cost * 0.8);
+        estateValue += v;
+        rows.push({ label: b.icon + ' ' + b.name, value: fmt(v) });
+      }
     });
-    if (!p.assets.length) rows.push({ label: '（暂无资产）', value: '—', cls: 'muted' });
-    rows.push({ kind: 'subtotal', label: '资产合计', value: fmt(totalAssets), cls: '' });
+    assetSum += estateValue;
+
+    let stockVal = 0;
+    Object.keys(p.stocks).forEach(id => {
+      const h = p.stocks[id];
+      if (h.shares > 0 && G.market[id]) {
+        const v = Math.round(h.shares * G.market[id].price);
+        stockVal += v;
+        const s = global.CFContent.STOCKS.find(x => x.id === id);
+        rows.push({ label: s.icon + ' ' + s.name + '（' + h.shares + ' 股）', value: fmt(v) });
+      }
+    });
+    assetSum += stockVal;
+
+    rows.push({ kind: 'subtotal', label: '资产合计', value: fmt(assetSum), cls: 'up' });
 
     rows.push({ kind: 'heading', label: '负债' });
-    p.liabilities.forEach(l => {
-      rows.push({ label: l.icon + ' ' + l.name, value: '−' + fmt(l.balance), cls: 'down' });
-    });
-    if (!p.liabilities.length) rows.push({ label: '（无负债，很棒！）', value: '0', cls: 'muted' });
-    rows.push({ kind: 'subtotal', label: '负债合计', value: '−' + fmt(totalLiab), cls: 'down' });
+    if (p.loan > 0) {
+      rows.push({ label: '🏦 银行贷款', value: '−' + fmt(p.loan), cls: 'down' });
+    } else {
+      rows.push({ label: '（无负债 👍）', value: '0', cls: 'muted' });
+    }
+    rows.push({ kind: 'subtotal', label: '负债合计', value: '−' + fmt(p.loan), cls: 'down' });
+    rows.push({ kind: 'total', label: '🏛️ 净资产（总资产）', value: fmt(assetSum - p.loan),
+      cls: assetSum - p.loan >= 0 ? 'up' : 'down' });
 
-    rows.push({
-      kind: 'total',
-      label: '🏛️ 净资产',
-      value: fmt(netWorth),
-      cls: netWorth >= 0 ? '' : 'down',
-    });
+    rows.push({ kind: 'note', label: '　现金流是水管，净资产是水池。水管越粗，水池迟早会满——先让租金变多。' });
 
-    return { rows: rows, totalAssets: totalAssets, totalLiab: totalLiab, netWorth: netWorth };
+    return { rows, netWorth: assetSum - p.loan };
   }
 
   /* ----------------------------------------------------------------------
-     渲染成 HTML 表格
-     ---------------------------------------------------------------------- */
-  function renderTable(rows, opts) {
-    opts = opts || {};
-    const rowsHtml = rows.map(r => {
-      if (r.kind === 'heading') {
-        return '<tr class="heading"><td colspan="2">' + esc(r.label) + '</td></tr>';
-      }
-      // note 行：一整行的小字说明，不做数值对齐
-      if (r.kind === 'note') {
-        return '<tr class="note-row"><td colspan="2">' + esc(r.label) + '</td></tr>';
-      }
-      const cls = r.kind === 'total' ? 'total' : (r.kind === 'subtotal' ? 'total' : '');
-      const you = (opts.highlight && r.label === opts.highlight) ? ' you' : '';
-      return '<tr class="' + cls + you + '">' +
-        '<td>' + esc(r.label) + '</td>' +
-        '<td class="' + (r.cls || '') + '">' + esc(r.value) + '</td>' +
-      '</tr>';
-    }).join('');
-    return '<table class="rpt-table"><tbody>' + rowsHtml + '</tbody></table>';
-  }
-
-  function esc(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    }[c]));
-  }
-
-  /* ----------------------------------------------------------------------
-     全部玩家横向对比表
+     全体对比表
      ---------------------------------------------------------------------- */
   function comparisonRows(players) {
-    const head = '<thead><tr><th>玩家</th><th>现金</th><th>月工资</th><th>被动收入</th>' +
-                 '<th>月支出</th><th>净现金流</th><th>净资产</th></tr></thead>';
-    const body = players.map(p => {
-      const cf = cashflowRows(p);
+    const head = '<thead><tr><th>玩家</th><th>现金</th><th>地产</th><th>股票</th><th>总资产</th></tr></thead>';
+    const body = players.slice().sort((a, b) => b.netWorth - a.netWorth).map(p => {
       const bs = balanceRows(p);
+      const cf = cashflowRows(p);
       return '<tr>' +
         '<td>' + esc(p.emoji + ' ' + p.name) + '</td>' +
         '<td>' + fmt(p.cash) + '</td>' +
-        '<td>' + fmt(p.salary) + '</td>' +
-        '<td class="up">' + fmt(p.passive) + '</td>' +
-        '<td class="down">' + fmt(cf.totalExpense) + '</td>' +
-        '<td class="' + (cf.ncf >= 0 ? 'up' : 'down') + '">' + sign(cf.ncf) + '</td>' +
-        '<td>' + fmt(bs.netWorth) + '</td>' +
+        '<td>' + p.estateIds.length + ' 块</td>' +
+        '<td>' + fmt(global.Engine.stockValue(p)) + '</td>' +
+        '<td><b>' + fmt(bs.netWorth) + '</b></td>' +
       '</tr>';
     }).join('');
     return '<table class="rpt-table">' + head + '<tbody>' + body + '</tbody></table>';
   }
 
+  function renderTable(rows) {
+    return '<table class="rpt-table"><tbody>' + rows.map(r => {
+      if (r.kind === 'heading') return '<tr class="heading"><td colspan="2">' + esc(r.label) + '</td></tr>';
+      if (r.kind === 'note') return '<tr class="note-row"><td colspan="2">' + esc(r.label) + '</td></tr>';
+      const cls = (r.kind === 'total' || r.kind === 'subtotal') ? 'total' : '';
+      return '<tr class="' + cls + '"><td>' + esc(r.label) + '</td>' +
+        '<td class="' + (r.cls || '') + '">' + esc(r.value) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  }
+
   /* ----------------------------------------------------------------------
-     财务自由进度（百分比）
-     口径说明：分母是「生活费」，与胜利条件保持一致（负债权重已通过
-     更高的生活费自动体现，避免同一份报表里出现两套不同的自由线）。
+     渲染（由 engine.render 调用）
      ---------------------------------------------------------------------- */
-  function freedomProgress(p) {
-    if (p.expenses <= 0) return p.passive > 0 ? 100 : 0;
-    return Math.min(100, (p.passive / p.expenses) * 100);
+  function renderTab(G) {
+    const body = document.getElementById('reportBody');
+    const tabs = document.getElementById('reportTabs');
+    if (!body || !G.players.length) return;
+
+    if (tabs) {
+      const btns = tabs.querySelectorAll('button[data-tab]');
+      btns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    }
+
+    if (viewIdx >= G.players.length) viewIdx = 0;
+    const p = G.players[viewIdx];
+
+    if (tab === 'compare') {
+      body.innerHTML = comparisonRows(G.players);
+      return;
+    }
+    const data = tab === 'cashflow' ? cashflowRows(p) : balanceRows(p);
+    body.innerHTML =
+      '<div class="rpt-who">' + p.emoji + ' ' + esc(p.name) + '　<span>' + esc(p.char.name) + '</span></div>' +
+      renderTable(data.rows);
   }
 
   global.Report = {
-    fmt, sign,
-    cashflowRows, balanceRows,
-    renderTable, comparisonRows,
-    freedomProgress,
-    esc,
+    cashflowRows, balanceRows, comparisonRows, renderTable,
+    renderTab, setTab, setView,
+    getTab: () => tab, getView: () => viewIdx,
+    fmt, sign, esc,
   };
-
 })(window);

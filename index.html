@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <meta name="theme-color" content="#4f6ef7">
-<meta name="description" content="现金流小富翁 —— 一款给孩子和家庭玩的财商启蒙桌面游戏。通过买资产、还负债、看懂财务报表，理解被动收入与财务自由。">
-<meta name="keywords" content="现金流游戏,财商教育,儿童理财,被动收入,财务自由,大富翁,亲子游戏">
-<title>现金流小富翁 · 财商启蒙游戏</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B8%3C/text%3E%3C/svg%3E">
+<meta name="description" content="梦想小镇大富翁 —— 给孩子和家庭玩的地产经营桌游。买地盖房收过路费、炒股、用道具卡、请神明附身，在玩中学会现金流与资产配置。">
+<meta name="keywords" content="大富翁,梦想小镇,儿童理财,财商教育,地产游戏,股票游戏,亲子桌游">
+<title>梦想小镇大富翁 · 儿童财商启蒙游戏</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎡%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/board.css">
+<link rel="stylesheet" href="css/hud.css">
 </head>
 <body>
 
@@ -18,11 +20,11 @@
 <div class="setup-screen" id="setupScreen">
   <div class="setup">
     <div class="setup-hero">
-      <div class="setup-badge">💰 财商启蒙 · 亲子桌游</div>
-      <h1>现金流小富翁</h1>
+      <div class="setup-badge">🎡 地产经营 · 亲子桌游 · 2-4 人</div>
+      <h1>梦想小镇大富翁</h1>
       <p class="setup-sub">
-        让钱为你工作，而不是你为钱工作。<br>
-        当你的 <b class="hl">被动收入 ≥ 生活费</b>，你就实现了财务自由。
+        买地盖房收过路费，炒股、用道具、请神明——<br>
+        让对手<b class="hl">破产</b>，或成为<b class="hl">总资产第一</b>的大亨！
       </p>
     </div>
 
@@ -36,126 +38,47 @@
       </div>
     </div>
 
-    <!-- 难度 -->
+    <!-- 局时长 -->
     <div class="field">
-      <div class="field-label">游戏模式 <span class="hint">影响机会成本与电脑策略</span></div>
+      <div class="field-label">局时长 <span class="hint">决定多少轮结束</span></div>
       <div class="mode-grid" id="modeGrid">
-        <button class="mode-card" data-mode="easy">
-          <div class="mc-name">🌱 轻松</div>
-          <div class="mc-desc">机会便宜、意外少，适合 6–10 岁孩子</div>
+        <button class="mode-card" data-mode="quick">
+          <div class="mc-name">⚡ 快速局</div>
+          <div class="mc-desc">20 轮 · 约 10 分钟<br>适合第一次玩</div>
         </button>
-        <button class="mode-card" data-mode="normal">
-          <div class="mc-name">⚖️ 标准</div>
-          <div class="mc-desc">贴近真实理财节奏，适合 10 岁以上</div>
+        <button class="mode-card" data-mode="standard">
+          <div class="mc-name">⚖️ 标准局</div>
+          <div class="mc-desc">35 轮 · 约 20 分钟<br>完整体验全部系统</div>
         </button>
-        <button class="mode-card" data-mode="hard">
-          <div class="mc-name">🔥 硬核</div>
-          <div class="mc-desc">通胀高、行情波动大，考验真本事</div>
+        <button class="mode-card" data-mode="marathon">
+          <div class="mc-name">🏔️ 马拉松</div>
+          <div class="mc-desc">60 轮 · 约 40 分钟<br>为真正的地产大亨准备</div>
         </button>
       </div>
     </div>
 
     <!-- 玩家配置 -->
     <div class="field">
-      <div class="field-label">玩家设置 <span class="hint">可改名字，可切换真人 / 电脑</span></div>
-      <div class="player-setup-list" id="playerSetupList"></div>
+      <div class="field-label">选择角色 <span class="hint">可改名字，可切换真人 / 电脑</span></div>
+      <div id="playerSetupList"></div>
     </div>
 
-    <!-- 开局选项 -->
+    <!-- 选项 -->
     <div class="field">
-      <div class="field-label">开局选项</div>
-
       <div class="opt-row">
-        <div>
-          <div class="ot">📖 新手引导</div>
-          <div class="od">开局时用高亮指引，逐项讲解玩法</div>
-        </div>
-        <button class="switch" id="optTutorial" role="switch" aria-checked="true"></button>
-      </div>
-
-      <div class="opt-row">
-        <div>
-          <div class="ot">🔔 音效</div>
-          <div class="od">掷骰子、买卖、领工资的提示音</div>
-        </div>
-        <button class="switch" id="optSound" role="switch" aria-checked="true"></button>
-      </div>
-
-      <div class="opt-row">
-        <div>
-          <div class="ot">💾 自动存档</div>
-          <div class="od">刷新页面后可继续上一局</div>
-        </div>
-        <button class="switch" id="optAutosave" role="switch" aria-checked="true"></button>
-      </div>
-
-      <div class="opt-row">
-        <div>
-          <div class="ot">🧮 显示详细报表</div>
-          <div class="od">结算时展示完整收支与资产负债表</div>
-        </div>
-        <button class="switch" id="optReport" role="switch" aria-checked="true"></button>
+        <button class="opt on" id="optSound"><span class="oi">🔊</span>音效</button>
+        <button class="opt on" id="optCoach"><span class="oi">🎓</span>新手引导</button>
+        <button class="opt on" id="optAutosave"><span class="oi">💾</span>自动存档</button>
       </div>
     </div>
 
     <div class="setup-actions">
-      <button class="btn btn-primary btn-lg btn-block" id="btnStart">
-        🚀 开始游戏
-      </button>
+      <button class="btn btn-primary btn-lg" id="btnStart">🎬 开始游戏</button>
+      <button class="btn btn-soft" id="btnContinue">📂 继续上次</button>
+      <button class="btn btn-soft" id="btnHelp">📖 玩法说明</button>
     </div>
 
-    <button class="rules-toggle" id="btnRules" aria-expanded="false">
-      📜 游戏规则与财商知识点 <span class="chev">▾</span>
-    </button>
-
-    <!-- 规则面板 -->
-    <div class="rules-panel" id="rulesPanel" hidden>
-      <h4>🎯 游戏目标</h4>
-      <ul>
-        <li>让 <b>被动收入 ≥ 每月生活费</b>，即可实现 <b>财务自由</b> 并获胜。</li>
-        <li>若回合数达到上限仍无人达成，则按 <b>净资产</b> 排名决出胜负。</li>
-      </ul>
-
-      <h4>📖 基本玩法</h4>
-      <ul>
-        <li>轮流掷骰子前进，落格触发各种事件。</li>
-        <li>经过或停在 <b>「领工资」</b> 格，结算一次月度现金流。</li>
-        <li>公式：<b>净现金流 = 工资 + 被动收入 − 生活费 − 负债利息</b>。</li>
-        <li>在 <b>「小机会 / 大机会」</b> 格用现金买入资产，资产每月带来被动收入。</li>
-        <li><b class="em-down">现金变成资产，是「换一种方式陪你」</b>——它没有消失，只是换了口袋。</li>
-      </ul>
-
-      <h4>📉 会花钱的地方</h4>
-      <ul>
-        <li><b>消费格</b>：想清楚「需要」还是「想要」。</li>
-        <li><b>意外支出格</b>：生病、修车、失业——所以要有 <b>应急基金</b>。</li>
-        <li>现金变成负数会触发 <b class="em-up">紧急贷款</b>，本金计入负债并每月产生利息。</li>
-      </ul>
-
-      <h4>🏦 什么是负债</h4>
-      <ul>
-        <li><b>自住房 ≠ 资产</b>：它每月从你口袋拿钱（房贷利息），不产生收入。</li>
-        <li><b>负债</b>每一期都要还利息，利息越多，你能拿来买资产的钱就越少。</li>
-        <li>理性路线：先还高息负债 → 攒应急基金 → 再持续买能生钱的资产。</li>
-      </ul>
-
-      <h4>📚 学习与慈善</h4>
-      <ul>
-        <li><b>学习进修</b>：花学费永久提高工资（回报率最高的一笔投资）。</li>
-        <li><b>慈善捐赠</b>：捐款可获得「善缘」——接下来数次掷骰子 +1 步，好心有好报。</li>
-      </ul>
-
-      <h4>🧮 报表怎么看</h4>
-      <ul>
-        <li><b>收支表</b>：收入 − 支出 = 净现金流，说明你每月能存下多少钱。</li>
-        <li><b>资产负债表</b>：资产 − 负债 = 净资产，说明你到底有多少家底。</li>
-        <li>两个指标一起看：现金流是「水管」，净资产是「水池」。</li>
-      </ul>
-    </div>
-
-    <div style="margin-top:14px;text-align:center">
-      <button class="btn btn-ghost btn-sm" id="btnContinue" hidden>▶ 继续上一局</button>
-    </div>
+    <div class="setup-foot">零依赖 · 纯网页 · 手机平板都能玩</div>
   </div>
 </div>
 
@@ -163,165 +86,89 @@
      游戏主界面
      ══════════════════════════════════════════════════════════ -->
 <div class="game-screen hidden" id="gameScreen">
-  <div class="app">
-
-    <!-- 顶栏 -->
-    <div class="topbar">
-      <div class="brand">
-        <div class="brand-logo">💸</div>
-        <div class="brand-text">
-          <h1>现金流小富翁</h1>
-          <div class="sub" id="subLabel">让钱为你工作</div>
-        </div>
-      </div>
-
-      <div class="topbar-stats">
-        <div class="tstat"><div class="k">回合</div><div class="v num" id="stRound">1</div></div>
-        <div class="tstat"><div class="k">通胀</div><div class="v num" id="stInflation">3%</div></div>
-        <div class="tstat" id="stLimitWrap"><div class="k">剩余回合</div><div class="v num" id="stLimit">∞</div></div>
-        <div class="tstat" id="stDebtWrap"><div class="k">你的负债</div><div class="v num" id="stDebt">0</div></div>
-      </div>
-
-      <div class="topbar-actions">
-        <button class="btn btn-ghost btn-sm" id="btnHelp">📖 帮助</button>
-        <button class="btn btn-ghost btn-sm" id="btnSave">💾 存档</button>
-        <button class="btn btn-ghost btn-sm" id="btnRestart">🔄 重开</button>
-      </div>
+  <header class="topbar">
+    <div class="tb-left">
+      <span class="tb-logo">🎡 梦想小镇</span>
+      <div class="tb-round" id="roundInfo"></div>
     </div>
-
-    <!-- 主体布局 -->
-    <div class="layout">
-
-      <!-- 左列 -->
-      <div class="col-left">
-
-        <!-- 新闻条 -->
-        <div class="news-bar" id="newsBar">
-          <span class="nb-tag">市场</span>
-          <span class="nb-text" id="newsText">市场平稳，机会在等待有准备的人。</span>
-        </div>
-
-        <!-- 棋盘 -->
-        <div class="board-shell">
-          <div class="board-stage">
-            <div class="board" id="board"></div>
-            <!-- 棋盘中心控制台 -->
-            <div class="board-center" id="boardCenter"></div>
-          </div>
-        </div>
-
-        <!-- 定期报表 -->
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">🧮 财务报表</div>
-            <div class="report-tabs" id="reportTabs">
-              <button data-tab="cashflow" class="active">收支表</button>
-              <button data-tab="balance">资产负债表</button>
-            </div>
-          </div>
-          <div class="report-scroll" id="reportBody"></div>
-        </div>
-      </div>
-
-      <!-- 右列 -->
-      <div class="col-right">
-
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">👥 玩家状态</div>
-            <div class="tag" id="turnBadge">等待开局</div>
-          </div>
-          <div class="card-body">
-            <div class="players-deck" id="playersDeck"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">🏅 财商徽章</div>
-            <div class="tag" id="badgeCount">0 / 12</div>
-          </div>
-          <div class="card-body">
-            <div class="badge-grid" id="badgeGrid"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">📜 事件记录</div>
-            <button class="btn btn-ghost btn-sm" id="btnClearLog">清空</button>
-          </div>
-          <div class="log" id="log"></div>
-        </div>
-
-      </div>
+    <div class="tb-right">
+      <button class="tb-btn" id="btnSave" title="保存进度">💾</button>
+      <button class="tb-btn" id="soundFab" title="音效开关">🔊</button>
     </div>
-  </div>
+  </header>
 
-  <!-- 浮动工具 -->
-  <div class="fab-bar">
-    <button class="fab" id="fabSound" title="音效开关">🔔</button>
-    <button class="fab" id="fabTop" title="回到顶部">⬆️</button>
-  </div>
+  <div class="news-bar" id="newsBar"></div>
+
+  <main class="game-main">
+    <!-- 左：棋盘 -->
+    <section class="board-col">
+      <div class="board-shell">
+        <div class="board-stage">
+          <div class="board" id="board"></div>
+          <div class="board-center" id="boardCenter"></div>
+        </div>
+      </div>
+      <div class="hand-bar" id="handBar"></div>
+    </section>
+
+    <!-- 右：玩家 + 报表 + 日志 -->
+    <aside class="side-col">
+      <div class="panel">
+        <div class="panel-head">👥 玩家</div>
+        <div class="players-deck" id="playersDeck"></div>
+      </div>
+
+      <div class="panel panel-report">
+        <div class="panel-head">
+          🧮 财务报表
+          <div class="report-tabs" id="reportTabs">
+            <button data-tab="cashflow" class="active">收支表</button>
+            <button data-tab="balance">资产负债表</button>
+            <button data-tab="compare">总览</button>
+          </div>
+        </div>
+        <div class="report-body" id="reportBody"></div>
+      </div>
+
+      <div class="panel panel-log">
+        <div class="panel-head">📜 小镇动态</div>
+        <div class="log" id="log"></div>
+      </div>
+    </aside>
+  </main>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     通用弹窗
+     弹窗 / 引导 / 结算 / Toast
      ══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true">
-  <div class="modal" id="modalBox">
-    <div class="modal-icon" id="modalIcon">💡</div>
-    <h2 class="modal-title" id="modalTitle"></h2>
-    <p class="modal-desc" id="modalDesc"></p>
-    <div id="modalExtra"></div>
-    <div class="modal-rows" id="modalRows"></div>
-    <div class="teach hidden" id="modalTeach">
-      <div class="t-icon">💡</div>
-      <div class="t-body">
-        <div class="t-title">财商小课堂</div>
-        <div class="t-text" id="modalTeachText"></div>
-      </div>
-    </div>
-    <div class="modal-actions" id="modalActions"></div>
-    <div class="modal-timer hidden" id="modalTimer"><span id="modalTimerBar"></span></div>
-  </div>
+  <div class="modal" id="modalBox"></div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════
-     结果界面
-     ══════════════════════════════════════════════════════════ -->
-<div class="overlay-screen hidden" id="resultScreen">
+<div class="coach-overlay hidden" id="coachOverlay">
+  <div class="coach-tip" id="coachTip"></div>
+</div>
+
+<div class="result-screen hidden" id="resultScreen">
   <div class="result-card" id="resultCard"></div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════
-     新手引导
-     ══════════════════════════════════════════════════════════ -->
-<div class="coach hidden" id="coach">
-  <div class="coach-mask"></div>
-  <div class="coach-spot" id="coachSpot"></div>
-  <div class="coach-tip" id="coachTip">
-    <div class="ct-step" id="coachStep">第 1 / 6 步</div>
-    <div class="ct-title" id="coachTitle"></div>
-    <div class="ct-text" id="coachText"></div>
-    <div class="ct-actions">
-      <div class="coach-dots" id="coachDots"></div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-soft btn-sm" id="coachSkip">跳过</button>
-        <button class="btn btn-primary btn-sm" id="coachNext">下一步</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 成就提示 -->
 <div class="toast-stack" id="toastStack"></div>
 
-<script src="js/data.js"></script>
+<!-- 脚本：依赖单向，顺序加载 -->
+<script src="js/data/world.js"></script>
+<script src="js/data/content.js"></script>
 <script src="js/audio.js"></script>
-<script src="js/report.js"></script>
 <script src="js/ui.js"></script>
-<script src="js/game.js"></script>
+<script src="js/board.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/report.js"></script>
+<script src="js/game/estate.js"></script>
+<script src="js/game/finance.js"></script>
+<script src="js/game/cardsys.js"></script>
+<script src="js/game/engine.js"></script>
+<script src="js/game/ai.js"></script>
+<script src="js/game/save.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

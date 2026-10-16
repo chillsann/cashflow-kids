@@ -1,198 +1,150 @@
 /* ==========================================================================
-   现金流小富翁 · 入口 / 设置界面
+   现金流小富翁 v2 · 入口
+   设置屏（人数 / 角色 / 局时长）· 操作台与手牌事件 · 启动
    ========================================================================== */
 (function (global) {
   'use strict';
 
-  const D = global.CFData;
   const U = global.UI;
-  const Game = global.Game;
+  const W = global.CFWorld;
 
-  /* ======================================================================
-     设置状态
-     ====================================================================== */
   const CFG = {
-    count: 2,
-    mode: 'normal',
+    count: 3,
+    mode: 'standard',
     players: [],
-    tutorial: true,
     sound: true,
+    coach: true,
     autosave: true,
-    report: true,
   };
 
-  const NAME_POOL = ['小明', '小红', '爸爸', '妈妈', '队长', '小美'];
+  let soundEnabled = true;
 
+  /* ======================================================================
+     设置屏
+     ====================================================================== */
   function initPlayers(n) {
-    const old = CFG.players.slice();
+    const chars = W.CHARACTERS;
     CFG.players = [];
     for (let i = 0; i < n; i++) {
-      CFG.players.push(old[i] || {
-        name: i === 0 ? '我' : '电脑' + i,
+      CFG.players.push({
+        name: i === 0 ? '我' : (i === 1 ? '玩家2' : (i === 2 ? '玩家3' : '玩家4')),
         isAI: i !== 0,
-        career: null,
-        persona: null,
+        charId: chars[i % chars.length].id,
+        persona: W.AI_PERSONAS[(i * 2) % W.AI_PERSONAS.length],
       });
     }
   }
 
-  /* ======================================================================
-     渲染设置界面
-     ====================================================================== */
   function renderSetup() {
-    // 人数
-    document.querySelectorAll('#countSeg button').forEach(b => {
-      b.classList.toggle('active', parseInt(b.dataset.count, 10) === CFG.count);
-    });
-
-    // 模式
-    document.querySelectorAll('#modeGrid .mode-card').forEach(b => {
-      b.classList.toggle('active', b.dataset.mode === CFG.mode);
-    });
-
-    // 玩家列表
     const list = document.getElementById('playerSetupList');
+    if (!list) return;
     list.innerHTML = CFG.players.map((p, i) => {
-      const career = p.career || D.CAREERS[i % D.CAREERS.length];
-      return '<div class="player-setup" data-idx="' + i + '">' +
-        '<div class="ps-avatar">' + D.PLAYER_EMOJIS[i % D.PLAYER_EMOJIS.length] + '</div>' +
-        '<div class="ps-fields">' +
-          '<input class="ps-name" data-idx="' + i + '" value="' + U.esc(p.name) + '" maxlength="10" placeholder="输入名字">' +
-          '<div class="ps-role">' +
-            '<button data-idx="' + i + '" data-role="human" class="' + (p.isAI ? '' : 'active') + '">👤 真人</button>' +
-            '<button data-idx="' + i + '" data-role="ai" class="' + (p.isAI ? 'active' : '') + '">🤖 电脑</button>' +
-            '<button data-idx="' + i + '" data-career="1" style="border-color:#e5e9f0;color:#6b7a90" title="换一个职业">' +
-              career.icon + ' ' + career.name + ' 🔄</button>' +
+      const ch = W.CHARACTERS.find(c => c.id === p.charId);
+      const isHuman = !p.isAI;
+      return '<div class="psetup" data-idx="' + i + '" style="--pc:' + W.PLAYER_COLORS[i % W.PLAYER_COLORS.length] + '">' +
+        '<div class="psetup-head">' +
+          '<span class="ps-av">' + U.av(ch, 'av-setup') + '</span>' +
+          '<input class="ps-name" value="' + U.esc(p.name) + '" data-role="name" maxlength="8">' +
+          '<div class="ps-toggle">' +
+            '<button class="pt-btn' + (isHuman ? ' on' : '') + '" data-role="human">👦 真人</button>' +
+            '<button class="pt-btn' + (!isHuman ? ' on' : '') + '" data-role="ai">🤖 电脑</button>' +
           '</div>' +
         '</div>' +
-        (i >= 2 ? '<button class="ps-remove" data-remove="' + i + '" title="移除">✕</button>' : '') +
+        '<div class="ps-chars">' + W.CHARACTERS.map(c =>
+          '<button class="ps-char' + (c.id === p.charId ? ' on' : '') + '" data-role="char" data-char="' + c.id + '" ' +
+            'title="' + U.esc(c.story) + '">' +
+            '<span class="psc-emoji">' + U.av(c, 'av-charpick') + '</span>' +
+            '<span class="psc-name">' + c.name + '</span>' +
+            '<span class="psc-meta">现金 ' + (c.cash / 1000) + 'k · 津贴 ' + (c.salary / 1000) + 'k</span>' +
+          '</button>').join('') + '</div>' +
+        '<div class="ps-story">' + ch.emoji + ' ' + U.esc(ch.story) + '　<b>' + U.esc(ch.teach) + '</b></div>' +
       '</div>';
     }).join('');
-
-    // 绑定
-    list.querySelectorAll('.ps-name').forEach(inp => {
-      inp.addEventListener('input', e => {
-        CFG.players[parseInt(e.target.dataset.idx, 10)].name =
-          e.target.value.trim() || ('玩家' + (parseInt(e.target.dataset.idx, 10) + 1));
-      });
-      inp.addEventListener('click', e => e.stopPropagation());
-    });
-
-    list.querySelectorAll('[data-role]').forEach(b => {
-      b.addEventListener('click', () => {
-        const i = parseInt(b.dataset.idx, 10);
-        CFG.players[i].isAI = b.dataset.role === 'ai';
-        if (!CFG.players[i].name || /^(玩家|电脑)\d*$/.test(CFG.players[i].name)) {
-          CFG.players[i].name = CFG.players[i].isAI ? ('电脑' + (i + 1)) : (i === 0 ? '我' : '玩家' + (i + 1));
-        }
-        renderSetup();
-      });
-    });
-
-    list.querySelectorAll('[data-career]').forEach(b => {
-      b.addEventListener('click', () => {
-        const i = parseInt(b.dataset.idx, 10);
-        const cur = CFG.players[i].career;
-        let next = D.CAREERS[Math.floor(Math.random() * D.CAREERS.length)];
-        if (cur && D.CAREERS.length > 1) {
-          let guard = 0;
-          while (next.id === cur.id && guard++ < 20) {
-            next = D.CAREERS[Math.floor(Math.random() * D.CAREERS.length)];
-          }
-        }
-        CFG.players[i].career = next;
-        renderSetup();
-      });
-    });
-
-    list.querySelectorAll('[data-remove]').forEach(b => {
-      b.addEventListener('click', () => {
-        CFG.players.splice(parseInt(b.dataset.remove, 10), 1);
-        CFG.count = CFG.players.length;
-        renderSetup();
-      });
-    });
-
-    // 继续游戏按钮
-    const cont = document.getElementById('btnContinue');
-    cont.hidden = !Game.hasSave();
   }
-
-  /* ======================================================================
-     事件绑定
-     ====================================================================== */
 
   function bindSetup() {
-    document.getElementById('countSeg').addEventListener('click', e => {
-      const btn = e.target.closest('button');
+    const list = document.getElementById('playerSetupList');
+    if (!list) return;
+
+    list.addEventListener('click', e => {
+      const box = e.target.closest('.psetup');
+      if (!box) return;
+      const i = +box.dataset.idx;
+      const btn = e.target.closest('[data-role]');
       if (!btn) return;
-      CFG.count = parseInt(btn.dataset.count, 10);
-      initPlayers(CFG.count);
-      global.SFX.play('click');
-      renderSetup();
-    });
+      const role = btn.dataset.role;
 
-    document.getElementById('modeGrid').addEventListener('click', e => {
-      const card = e.target.closest('.mode-card');
-      if (!card) return;
-      CFG.mode = card.dataset.mode;
-      global.SFX.play('click');
-      renderSetup();
-    });
-
-    // 开关
-    bindSwitch('optTutorial', 'tutorial', true);
-    bindSwitch('optSound', 'sound', true);
-    bindSwitch('optAutosave', 'autosave', true);
-    bindSwitch('optReport', 'report', true);
-
-    // 规则折叠
-    const rt = document.getElementById('btnRules');
-    rt.addEventListener('click', () => {
-      const panel = document.getElementById('rulesPanel');
-      const open = panel.hidden;
-      panel.hidden = !open;
-      rt.setAttribute('aria-expanded', String(open));
-      global.SFX.play('click');
-    });
-
-    // 开始
-    document.getElementById('btnStart').addEventListener('click', () => {
-      global.SFX.unlock();
-      global.SFX.play('click');
-      launch();
-    });
-
-    // 继续
-    document.getElementById('btnContinue').addEventListener('click', () => {
-      global.SFX.unlock();
-      if (Game.load()) {
-        document.getElementById('setupScreen').classList.add('hidden');
-        document.getElementById('gameScreen').classList.remove('hidden');
-        document.getElementById('resultScreen').classList.add('hidden');
-        Game.render();
-        U.log('💾 已载入上一次的对局', 'info');
-        const p = Game.G.players[Game.G.cur];
-        if (p && p.isAI && !Game.G.over) setTimeout(Game.doRoll, 900);
-      } else {
-        U.toast('⚠️', '读档失败', '存档可能已损坏，请重新开始。');
+      if (role === 'human' || role === 'ai') {
+        CFG.players[i].isAI = (role === 'ai');
+      } else if (role === 'char') {
+        CFG.players[i].charId = btn.dataset.char;
       }
+      renderSetup();
     });
+
+    list.addEventListener('input', e => {
+      if (e.target.dataset.role !== 'name') return;
+      const box = e.target.closest('.psetup');
+      CFG.players[+box.dataset.idx].name = e.target.value || '玩家';
+    });
+
+    /* 人数 */
+    document.getElementById('countSeg').addEventListener('click', e => {
+      const b = e.target.closest('button[data-count]');
+      if (!b) return;
+      CFG.count = +b.dataset.count;
+      document.querySelectorAll('#countSeg button').forEach(x => x.classList.toggle('on', x === b));
+      initPlayers(CFG.count);
+      renderSetup();
+    });
+
+    /* 局时长 */
+    document.getElementById('modeGrid').addEventListener('click', e => {
+      const b = e.target.closest('.mode-card');
+      if (!b) return;
+      CFG.mode = b.dataset.mode;
+      document.querySelectorAll('#modeGrid .mode-card').forEach(x => x.classList.toggle('on', x === b));
+    });
+
+    /* 开关 */
+    const sw = (id, key) => {
+      const el = document.getElementById(id);
+      el.addEventListener('click', () => {
+        CFG[key] = !CFG[key];
+        el.classList.toggle('on', CFG[key]);
+        if (key === 'sound') { soundEnabled = CFG[key]; global.SFX.setEnabled(CFG[key]); }
+      });
+      el.classList.toggle('on', CFG[key]);
+    };
+    sw('optSound', 'sound');
+    sw('optCoach', 'coach');
+    sw('optAutosave', 'autosave');
+
+    /* 开始 */
+    document.getElementById('btnStart').addEventListener('click', launch);
+    document.getElementById('btnContinue').addEventListener('click', () => {
+      if (!global.SaveSys.load()) U.toast('⚠️', '没有可用的存档');
+    });
+    document.getElementById('btnContinue').style.display = global.SaveSys.hasSave() ? '' : 'none';
+
+    document.getElementById('btnHelp').addEventListener('click', showHelp);
   }
 
-  function bindSwitch(id, key, def) {
-    const el = document.getElementById(id);
-    el.setAttribute('aria-checked', String(def));
-    CFG[key] = def;
-    el.addEventListener('click', () => {
-      const v = el.getAttribute('aria-checked') !== 'true';
-      el.setAttribute('aria-checked', String(v));
-      CFG[key] = v;
-      if (key === 'sound') {
-        global.SFX.setEnabled(v);
-        syncSoundFab();
-      }
-      if (v) global.SFX.play('click');
+  function showHelp() {
+    U.modal({
+      icon: '📖', title: '梦想小镇 · 玩法说明', wide: true,
+      html:
+        '<div class="help-grid">' +
+        '<div class="help-item"><b>🎯 胜利条件</b><p>让所有对手<b>破产</b>，或轮数走完时<b>总资产最高</b>。总资产 = 现金 + 存款 + 地产 + 股票 − 贷款。</p></div>' +
+        '<div class="help-item"><b>🏠 买地盖房</b><p>落到无主地块可买下；再次落上可加盖（L1 小屋 → L4 酒店）。对手落上就要交过路费。</p></div>' +
+        '<div class="help-item"><b>⚡ 垄断</b><p>集齐同一街区的<b>全部</b>地块，该街区租金 <b>×2</b>。这是最快拉开差距的方式。</p></div>' +
+        '<div class="help-item"><b>📈 股市</b><p>4 只股票，每轮波动。低买高卖赚差价，持有还有分红。涨得快的，跌得也快。</p></div>' +
+        '<div class="help-item"><b>🃏 卡片</b><p>道具店购买、卡片格拾取、命运赠送。遥控骰子、怪兽卡、路障、炸弹……</p></div>' +
+        '<div class="help-item"><b>✨ 神明</b><p>财神收入 ×2、福神挡厄运、穷神收入减半、衰神扣钱。好坏全看运气。</p></div>' +
+        '<div class="help-item"><b>🎰 乐透</b><p>500 元一张，每 5 轮开奖，中奖率 8%。奖池越大越值得赌一把。</p></div>' +
+        '<div class="help-item"><b>🏦 银行</b><p>存款生息、贷款付息。贷款是杠杆：放大收益，也放大风险。</p></div>' +
+        '</div>',
+      teach: '记住大亨的三条铁律：<b>① 现金流是氧气；② 垄断是杠杆；③ 分散是铠甲。</b>',
     });
   }
 
@@ -200,207 +152,133 @@
      启动游戏
      ====================================================================== */
   function launch() {
-    const players = CFG.players.map((p, i) => ({
-      name: p.name || ('玩家' + (i + 1)),
-      isAI: p.isAI,
-      career: p.career || D.CAREERS[i % D.CAREERS.length],
-      persona: p.isAI ? pickPersona(i) : null,
-    }));
-
-    // 至少一个真人
-    if (!players.some(p => !p.isAI)) players[0].isAI = false;
-
+    CFG.players.forEach(p => {
+      if (p.isAI) {
+        p.persona = p.persona || W.AI_PERSONAS[Math.floor(Math.random() * W.AI_PERSONAS.length)];
+      }
+      if (!p.name) p.name = '玩家';
+    });
     global.SFX.setEnabled(CFG.sound);
-    syncSoundFab();
-
-    Game.startGame({ mode: CFG.mode, players: players });
-
-    // 新手引导
-    if (CFG.tutorial) {
-      setTimeout(() => U.startCoach(() => {
-        U.toast('🎲', '开始吧！', '点击「掷骰子」，开始你的财富之旅。');
-      }), 500);
+    global.SFX.unlock();
+    global.Engine.startGame({
+      mode: CFG.mode,
+      players: CFG.players.map(p => ({ name: p.name, isAI: p.isAI, charId: p.charId, persona: p.persona })),
+      coach: CFG.coach && CFG.players.some(p => !p.isAI),
+    });
+    if (CFG.autosave) {
+      clearInterval(window.__cfAutosave);
+      window.__cfAutosave = setInterval(() => {
+        if (global.SaveSys) global.SaveSys.save();
+      }, 15000);
     }
-
-    // 全局绑定（只绑定一次）
-    bindGameOnce();
-  }
-
-  function pickPersona(i) {
-    return D.AI_PERSONAS[i % D.AI_PERSONAS.length];
   }
 
   /* ======================================================================
-     游戏内全局绑定
+     游戏内事件（一次性绑定，事件委托）
      ====================================================================== */
-  let gameBound = false;
-
   function bindGameOnce() {
-    if (gameBound) return;
-    gameBound = true;
-
-    // 报表切换
-    document.getElementById('reportTabs').addEventListener('click', e => {
-      const b = e.target.closest('button');
-      if (!b) return;
-      document.querySelectorAll('#reportTabs button').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      Game.setReportTab(b.dataset.tab);
-      global.SFX.play('click');
-    });
-
-    // 清空日志
-    document.getElementById('btnClearLog').addEventListener('click', () => {
-      U.clearLog();
-      global.SFX.play('click');
-    });
-
-    // 帮助
-    document.getElementById('btnHelp').addEventListener('click', () => {
-      global.SFX.play('click');
-      showHelp();
-    });
-
-    // 存档
-    document.getElementById('btnSave').addEventListener('click', () => {
-      global.SFX.play('click');
-      if (Game.save()) {
-        U.toast('💾', '已保存', '下次打开页面可以继续这一局。');
-      } else {
-        U.toast('⚠️', '保存失败', '浏览器可能禁用了本地存储。');
+    /* 操作台 */
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('[data-act]');
+      if (btn) {
+        const act = btn.dataset.act;
+        const p = global.Engine.cur();
+        if (!p) return;
+        if (act === 'roll') { global.SFX.unlock(); global.Engine.doRoll(p.fixedDice || null); if (p.fixedDice) p.fixedDice = null; }
+        else if (act === 'build') global.Estate.openBuildPanel(p);
+        else if (act === 'cards') openMyCards(p);
+        else if (act === 'stock') global.Finance.stockPanel(p);
+        else if (act === 'bank') global.Finance.bankPanel(p);
+        else if (act === 'end') global.Engine.endTurn();
+        return;
       }
-    });
-
-    // 重开
-    document.getElementById('btnRestart').addEventListener('click', async () => {
-      global.SFX.play('click');
-      const yes = await U.modal({
-        icon: '🔄', title: '重新开始？',
-        desc: '当前进度会丢失（如果开了自动存档，也会一并清除）。',
-        options: [
-          { label: '确认重开', value: 'yes', primary: true },
-          { label: '取消', value: 'no' },
-        ],
-      });
-      if (yes === 'yes') {
-        Game.clearSave();
-        location.reload();
-      }
-    });
-
-    // 音效 FAB
-    document.getElementById('fabSound').addEventListener('click', () => {
-      const on = !global.SFX.isEnabled();
-      global.SFX.setEnabled(on);
-      syncSoundFab();
-      if (on) global.SFX.play('click');
-      U.toast(on ? '🔔' : '🔕', on ? '音效已开启' : '音效已关闭', on ? '掷骰子、买卖都会有声哦。' : '安静的游戏中。');
-    });
-
-    // 回到顶部
-    document.getElementById('fabTop').addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    // 新手引导
-    document.getElementById('coachNext').addEventListener('click', () => U.advanceCoach());
-    document.getElementById('coachSkip').addEventListener('click', () => U.endCoach());
-    document.querySelector('.coach-mask').addEventListener('click', () => U.endCoach());
-
-    // 键盘快捷键
-    document.addEventListener('keydown', e => {
-      if (e.key === ' ' || e.key === 'Enter') {
-        const btn = document.getElementById('rollBtn');
-        if (document.activeElement === document.body && btn && !btn.disabled) {
-          e.preventDefault();
-          btn.click();
+      /* 手牌：只能在自己回合、且处于可操作阶段时使用 */
+      const hc = e.target.closest('.hcard');
+      if (hc && !hc.disabled) {
+        const G = global.Engine.G;
+        const cp = global.Engine.cur();
+        const me = (cp && !cp.isAI && !cp.bankrupt) ? cp
+          : G.players.find(x => !x.isAI && !x.bankrupt);
+        if (!me) return;
+        if (G.phase !== 'idle' && G.phase !== 'idle-post') {
+          U.toast('⏳', '现在还不能用卡', '等结算完成或轮到你时再用');
+          return;
         }
-      }
-      if (e.key === 'Escape') {
-        const coach = document.getElementById('coach');
-        if (!coach.classList.contains('hidden')) { U.endCoach(); return; }
-        U.closeModal(null);
+        global.CardSys.useCard(me, +hc.dataset.uid);
       }
     });
 
-    // 自动存档
-    window.addEventListener('beforeunload', () => {
-      if (CFG.autosave && Game.G.players.length && !Game.G.over) Game.save();
+    /* 报表切换 */
+    const tabs = document.getElementById('reportTabs');
+    if (tabs) tabs.addEventListener('click', e => {
+      const b = e.target.closest('button[data-tab]');
+      if (!b) return;
+      global.Report.setTab(b.dataset.tab);
+      global.Report.renderTab(global.Engine.G);
+      /* 切换看谁（点击玩家卡） */
     });
 
-    // 每回合自动存档
-    setInterval(() => {
-      if (CFG.autosave && Game.G.players.length && !Game.G.over && !Game.G.busy) Game.save();
-    }, 20000);
-  }
+    /* 点玩家卡切换报表查看对象 */
+    const deck = document.getElementById('playersDeck');
+    if (deck) deck.addEventListener('click', e => {
+      const card = e.target.closest('.pcard');
+      if (!card) return;
+      global.Report.setView(+card.dataset.pid);
+      global.Report.renderTab(global.Engine.G);
+    });
 
-  function syncSoundFab() {
-    const f = document.getElementById('fabSound');
-    if (f) f.textContent = global.SFX.isEnabled() ? '🔔' : '🔕';
-  }
+    /* 音效开关按钮 */
+    const fab = document.getElementById('soundFab');
+    if (fab) fab.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      global.SFX.setEnabled(soundEnabled);
+      fab.textContent = soundEnabled ? '🔊' : '🔇';
+      fab.classList.toggle('off', !soundEnabled);
+    });
 
-  /* ======================================================================
-     帮助弹窗
-     ====================================================================== */
-  function showHelp() {
-    U.modal({
-      wide: true,
-      icon: '📖',
-      title: '游戏规则速查',
-      desc: '随时按 Esc 关闭',
-      html:
-        '<div class="rules-panel" style="margin:0;text-align:left">' +
-          '<h4>🎯 怎么赢</h4>' +
-          '<ul><li>让 <b>被动收入 ≥ 每月生活费</b>，立刻实现财务自由。</li>' +
-          '<li>回合数满时，按 <b>净资产</b> 排名。</li></ul>' +
-          '<h4>💰 钱从哪来</h4>' +
-          '<ul>' +
-            '<li><b>领工资格</b>：结算 工资 + 被动收入 − 生活费 − 负债利息。</li>' +
-            '<li><b>副业格</b>：一次性主动收入。</li>' +
-            '<li><b>市场风云</b>：宏观事件，全员受影响。</li>' +
-          '</ul>' +
-          '<h4>🏗️ 怎么变富</h4>' +
-          '<ul>' +
-            '<li><b>小机会</b>：门槛低，用现金买。</li>' +
-            '<li><b>大机会</b>：门槛高，可用首付 + 贷款撬动。</li>' +
-            '<li><b>学习进修</b>：永久提高工资或资产收益。</li>' +
-            '<li><b>还债</b>：点自己卡片上的「🔓 还负债」，减少每月利息。</li>' +
-          '</ul>' +
-          '<h4>⚠️ 小心这些</h4>' +
-          '<ul>' +
-            '<li><b>消费 / 意外</b>：现金变负数会被迫卖资产或借紧急贷款。</li>' +
-            '<li><b>负债陷阱</b>：大机会里偶尔出现「买车、买奢侈品」，它们只会吃钱。</li>' +
-          '</ul>' +
-          '<h4>🛡️ 保命工具</h4>' +
-          '<ul>' +
-            '<li><b>保险</b>（银行格）：意外支出可获 80% 理赔。</li>' +
-            '<li><b>应急基金</b>：留住 3–6 个月生活费，是最重要的安全垫。</li>' +
-          '</ul>' +
-        '</div>',
-      options: [{ label: '知道了', value: 'ok', primary: true }],
+    /* 存档按钮 */
+    const sb = document.getElementById('btnSave');
+    if (sb) sb.addEventListener('click', () => {
+      U.toast(global.SaveSys.save() ? '💾' : '⚠️', global.SaveSys.save() ? '已保存' : '保存失败');
     });
   }
 
+  async function openMyCards(p) {
+    if (!p.cards.length) {
+      return U.modal({ icon: '🃏', title: '手牌是空的', desc: '去道具店买一张，或者路过卡片格捡一张吧！' });
+    }
+    const cards = p.cards.map(c => {
+      const d = global.CardSys.cardDef(c.id);
+      return { value: 'u:' + c.uid, icon: d.icon, name: d.name, desc: d.desc, price: '' };
+    });
+    const pick = await U.modal({
+      icon: '🃏', title: '我的手牌', desc: '选择要使用哪一张：', cards, wide: true,
+      options: [{ label: '关闭', value: 'close', soft: true }],
+    });
+    if (pick && pick.startsWith('u:')) await global.CardSys.useCard(p, +pick.slice(2));
+  }
+
   /* ======================================================================
-     初始化
+     启动
      ====================================================================== */
   function boot() {
-    initPlayers(2);
-    bindSetup();
+    U.initModalEvents();
+    initPlayers(CFG.count);
     renderSetup();
-    syncSoundFab();
-
-    // 首次交互解锁音频
-    const unlock = () => { global.SFX.unlock(); document.removeEventListener('pointerdown', unlock); };
-    document.addEventListener('pointerdown', unlock);
+    bindSetup();
+    bindGameOnce();
+    /* 默认选中项 */
+    document.querySelectorAll('#countSeg button').forEach(b => b.classList.toggle('on', +b.dataset.count === CFG.count));
+    document.querySelectorAll('#modeGrid .mode-card').forEach(b => b.classList.toggle('on', b.dataset.mode === CFG.mode));
+    ['optSound', 'optCoach', 'optAutosave'].forEach(id => {
+      const el = document.getElementById(id);
+      const key = { optSound: 'sound', optCoach: 'coach', optAutosave: 'autosave' }[id];
+      if (el) el.classList.toggle('on', CFG[key]);
+    });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 
-  global.CashflowKids = { CFG, renderSetup, launch, showHelp };
-
+  global.App = { CFG, renderSetup, launch, showHelp, initPlayers };
 })(window);
