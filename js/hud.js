@@ -23,11 +23,16 @@
   function renderTop(G) {
     const mode = W.GAME_MODES[G.mode];
     const left = Math.max(0, mode.rounds - G.round + 1);
+    const cal = global.Calendar;
+    const c = G.calendar || { month: 1, dom: 1, holiday: false, index: 1 };
     const el = document.getElementById('roundInfo');
     if (el) {
       el.innerHTML =
-        '<span class="ri-item">第 <b>' + Math.min(G.round, mode.rounds) + '</b> / ' + mode.rounds + ' 轮</span>' +
-        '<span class="ri-item">剩余 <b>' + left + '</b> 轮</span>' +
+        '<span class="ri-item">📅 第 <b>' + c.month + '</b> 月 <b>' + c.dom + '</b> 日' +
+          (c.holiday ? ' <span style="color:#e0342b">· 休市</span>' : '') + '</span>' +
+        '<span class="ri-item">剩余 <b>' + left + '</b> 天</span>' +
+        '<span class="ri-item" title="物价指数：地价 / 过路费 / 事件金额同步上涨">📊 物价 <b>×' + c.index.toFixed(1) + '</b></span>' +
+        '<span class="ri-item">🎰 <b>' + cal.nextDrawDays() + '</b> 天后开奖</span>' +
         '<span class="ri-item">' + mode.icon + ' ' + mode.name + '</span>';
     }
   }
@@ -84,6 +89,7 @@
           '<button class="cc-btn" data-act="cards" ' + (canAct ? '' : 'disabled') + '>🃏<span>用卡' + (p.cards.length ? ' (' + p.cards.length + ')' : '') + '</span></button>' +
           '<button class="cc-btn" data-act="stock" ' + (canAct ? '' : 'disabled') + ' id="btnStock">📈<span>股市</span></button>' +
           '<button class="cc-btn" data-act="bank" ' + (canAct ? '' : 'disabled') + ' id="btnBank">🏦<span>银行</span></button>' +
+          '<button class="cc-btn" data-act="trade" ' + (canAct ? '' : 'disabled') + ' id="btnTrade">🤝<span>交易</span></button>' +
         '</div>' +
         '<div class="cc-end"><button class="btn btn-primary btn-block" data-act="end" ' +
           (canEnd ? '' : 'disabled') + '>结束回合 →</button></div>'

@@ -52,8 +52,8 @@
         '<rect x="12.5" y="10" width="23" height="3.5" rx="1" fill="' + c + '"/>' +
         '<rect x="20.5" y="24" width="7" height="16" rx="1" fill="' + dark + '"/>' +
         windows(15, 15.5, 3, 2) + windows(15, 22.5, 3, 2) + windows(15, 29.5, 3, 2);
-    } else {
-      /* L4 酒店：宽体 + 金字招牌 + 旗子 */
+    } else if (level === 4) {
+      /* L4 大楼：宽体 + 金字招牌 + 旗子 */
       inner =
         '<rect x="10" y="14" width="28" height="26" rx="2" fill="' + light + '" stroke="' + dark + '" stroke-width="1"/>' +
         '<rect x="8.5" y="11.5" width="31" height="4" rx="1.5" fill="' + c + '"/>' +
@@ -62,6 +62,18 @@
         '<text x="24" y="20.8" font-size="4" text-anchor="middle" fill="#8a5c00" font-weight="800">HOTEL</text>' +
         '<rect x="20.5" y="27" width="7" height="13" rx="1" fill="' + dark + '"/>' +
         windows(12, 25, 4, 1) + windows(28, 25, 2, 1);
+    } else {
+      /* L5 星级酒店：塔楼 + 皇冠 + 星星，最高级地标 */
+      inner =
+        '<ellipse cx="24" cy="42" rx="19" ry="3" fill="rgba(47,63,92,.12)"/>' +
+        '<rect x="12" y="16" width="24" height="26" rx="2" fill="' + light + '" stroke="' + dark + '" stroke-width="1"/>' +
+        '<rect x="17" y="8" width="14" height="9" rx="1.5" fill="' + c + '" stroke="' + dark + '" stroke-width="1"/>' +
+        '<path d="M24 8 V2" stroke="#d99a2b" stroke-width="1.4"/>' +
+        '<path d="M16 5 l2.2 -2.6 2.2 2.6 3.6 -3.4 3.6 3.4 2.2 -2.6 2.2 2.6 Z" fill="#f6c043" stroke="#d99a2b" stroke-width=".7"/>' +
+        '<rect x="14" y="18" width="20" height="4.5" rx="1" fill="#f6c043" stroke="#d99a2b" stroke-width=".7"/>' +
+        '<text x="24" y="21.6" font-size="3.8" text-anchor="middle" fill="#8a5c00" font-weight="800">★★★★★</text>' +
+        '<rect x="21" y="30" width="6" height="12" rx="1" fill="' + dark + '"/>' +
+        windows(14, 25, 3, 2) + windows(29, 25, 1, 2);
     }
     return '<svg viewBox="0 0 48 48" class="b-svg">' + inner + '</svg>';
 
@@ -84,6 +96,15 @@
           '<circle cx="31" cy="24" r="8.5" fill="#7fca68" stroke="#4d9440" stroke-width="1"/>' +
           '<rect x="22.8" y="28" width="2.6" height="12" rx="1" fill="#8a5c3a"/>' +
           '<ellipse cx="24" cy="16" rx="3" ry="1.6" fill="#cfe8ff" stroke="#8bb8d8" stroke-width=".7"/>' +
+          '</svg>';
+      case 'mall':
+        return '<svg viewBox="0 0 48 48" class="b-svg">' +
+          '<rect x="8" y="19" width="32" height="22" rx="2" fill="#f3e9f7" stroke="#a97bc0" stroke-width="1"/>' +
+          '<rect x="8" y="19" width="32" height="6" rx="2" fill="#b07de0"/>' +
+          '<rect x="12" y="28" width="9" height="10" rx="1" fill="#fff" stroke="#a97bc0" stroke-width=".8"/>' +
+          '<rect x="27" y="28" width="9" height="10" rx="1" fill="#fff" stroke="#a97bc0" stroke-width=".8"/>' +
+          '<rect x="21" y="30" width="6" height="11" rx="1" fill="#a97bc0"/>' +
+          '<text x="24" y="16" font-size="7" text-anchor="middle">🛍️</text>' +
           '</svg>';
       case 'station':
         return '<svg viewBox="0 0 48 48" class="b-svg">' +
@@ -340,10 +361,11 @@
     if (!stage) return;
     const faces = ['front', 'back', 'right', 'left', 'top', 'bottom'];
     const pips = [1, 6, 3, 4, 5, 2];   // 面 → 点数
-    stage.innerHTML =
-      '<div class="dice-tilt"><div class="dice-3d" id="dice3d">' +
-        faces.map((f, i) => '<div class="dice-face d-' + f + '" data-face="' + pips[i] + '">' + pipSVG(pips[i]) + '</div>').join('') +
+    /* 原版为两颗骰子：并排两颗，各自独立旋转 */
+    const one = k => '<div class="dice-tilt"><div class="dice-3d" data-die="' + k + '">' +
+      faces.map((f, i) => '<div class="dice-face d-' + f + '" data-face="' + pips[i] + '">' + pipSVG(pips[i]) + '</div>').join('') +
       '</div></div>';
+    stage.innerHTML = one(0) + one(1);
   }
 
   function pipSVG(n) {
@@ -368,23 +390,31 @@
     6: 'rotateX(180deg) rotateY(0deg)',
   };
 
+  /* 兼容两种调用：单颗(数字) 或 原版双骰(数组 [d1,d2]) */
   async function rollDiceAnimation(finalValue) {
-    const d = document.getElementById('dice3d');
+    const values = Array.isArray(finalValue) ? finalValue : [finalValue];
+    const dice = Array.prototype.slice.call(document.querySelectorAll('#diceStage .dice-3d'));
     const txt = document.getElementById('diceValue');
-    if (!d) return finalValue;
-    d.classList.add('rolling');
+    if (!dice.length) return values;
     const spin = ['rotateX(720deg) rotateY(360deg)', 'rotateX(360deg) rotateY(720deg)',
       'rotateX(-720deg) rotateY(180deg)', 'rotateX(180deg) rotateY(-720deg)'];
+    dice.forEach(d => d.classList.add('rolling'));
     for (let i = 0; i < 3; i++) {
-      d.style.transform = spin[i % spin.length];
+      dice.forEach((d, k) => { d.style.transform = spin[(i + k) % spin.length]; });
       if (txt) txt.textContent = '?';
       await U.sleep(160);
     }
-    d.classList.remove('rolling');
-    d.style.transform = FACE_ROT[finalValue] || FACE_ROT[1];
-    if (txt) txt.textContent = finalValue;
+    dice.forEach((d, k) => {
+      d.classList.remove('rolling');
+      d.style.transform = FACE_ROT[values[k]] || FACE_ROT[1];
+    });
+    if (txt) {
+      txt.textContent = values.length > 1
+        ? values[0] + '+' + values[1] + '=' + values.reduce((a, b) => a + b, 0)
+        : values[0];
+    }
     await U.sleep(240);
-    return finalValue;
+    return values;
   }
 
   global.Board = {

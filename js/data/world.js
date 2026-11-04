@@ -37,13 +37,15 @@
 
   /* ======================================================================
      三、40 格地图定义
-     地产租金表：[空地搭棚, L1小屋, L2洋房, L3大厦, L4酒店]
-     租金 ≈ 地价的 [6%, 11%, 24%, 42%, 68%]，垄断时 ×2
+     地产租金表：[空地, L1小屋, L2洋房, L3大厦, L4大楼, L5酒店]（原版 5 级加盖）
+     租金 ≈ 地价的 [6%, 11%, 24%, 42%, 62%, 88%]，垄断 / 连锁另有加成
      ====================================================================== */
   const rentOf = price => [
     Math.round(price * 0.06), Math.round(price * 0.11), Math.round(price * 0.24),
-    Math.round(price * 0.42), Math.round(price * 0.68),
+    Math.round(price * 0.42), Math.round(price * 0.62), Math.round(price * 0.88),
   ];
+
+  const MAX_LEVEL = 5;   // L0 空地 → L5 酒店（原版最高 5 级）
 
   const E = (i, district, name, icon, price) => ({
     i, type: 'estate', district, name, icon,
@@ -71,14 +73,14 @@
     { i: 16, type: 'bank',     name: '银行',   icon: '🏦', desc: '存款有利息，贷款要付息，量力而行。' },
     E(17, 'milktea',   '珍珠奶茶街', '🧋', 7000),
     { i: 18, type: 'chance',   name: '命运',   icon: '🎴', desc: '命运的齿轮开始转动……' },
-    { i: 19, type: 'park',     name: '中央乐园', icon: '🎡', desc: '休息一回合，顺便领 2 张点券。' },          // 右下角
+    { i: 19, type: 'arcade',   name: '游乐场', icon: '🕹️', desc: '玩接金币 / 射神明 / 猜兔子，赢点券换卡片！' },  // 右下角
     E(20, 'milktea',   '椰果奶茶巷', '🥤', 8000),
     E(21, 'beach',     '阳光沙滩', '🏖️', 8000),
-    { i: 22, type: 'special',  name: '海景建地', icon: '🏗️', desc: '大型建地：可盖公园 / 加油站 / 研究中心 / 度假饭店。' },
+    { i: 22, type: 'special',  name: '海景建地', icon: '🏗️', desc: '大型建地：公园 / 购物中心 / 旅馆 / 加油站 / 研究所 五选一。' },
     E(23, 'beach',     '贝壳小径', '🐚', 9000),
     { i: 24, type: 'news',     name: '新闻',   icon: '📰', desc: '小镇大事，全体玩家都会受影响！' },
     E(25, 'beach',     '海浪大道', '🌊', 9000),
-    { i: 26, type: 'god',      name: '神明祭坛', icon: '✨', desc: '随机请来一位神明附身——好坏全看运气！' },
+    { i: 26, type: 'magic',    name: '魔法屋', icon: '🔮', desc: '女巫选出一个人，由你决定怎么捉弄他！' },
     E(27, 'funfair',   '旋转木马街', '🎠', 10000),
     { i: 28, type: 'lottery',  name: '乐透站', icon: '🎰', desc: '买一张彩票，梦想还是要有的！' },
     E(29, 'funfair',   '摩天轮路', '🎡', 11000),
@@ -94,20 +96,23 @@
     E(39, 'star',      '星辰小路', '⭐', 20000),
   ];
 
-  /* 特殊建筑（大型建地上可盖的 4 种） */
+  /* 特殊建筑（原版 5 种：公园 / 购物中心 / 旅馆 / 加油站 / 研究所） */
   const SPECIAL_BUILDINGS = {
     park:   { id: 'park',   name: '中央公园',   icon: '🌳', cost: 8000,
               desc: '任何人路过都免费——但也无法被收租。适合防御性布局。',
               rent: 0, teach: '公园不收钱，但能让对手在你的街区里「无伤通过」，是防御性投资。' },
+    mall:   { id: 'mall',   name: '购物中心', icon: '🏬', cost: 11000,
+              desc: '对手落上需按「你持有的地产数 × 400」付购物费。',
+              rent: 0, teach: '购物中心的收益随你的地产规模增长——这就是「协同效应」。' },
     station:{ id: 'station', name: '加油站',   icon: '⛽', cost: 10000,
               desc: '你经过任意起点时，津贴 ×1.5。',
               rent: 0, teach: '加油站提升的是你自己的「主动收入」，跟租金这种被动收入是两回事。' },
-    lab:    { id: 'lab',    name: '研究中心', icon: '🔬', cost: 12000,
+    lab:    { id: 'lab',    name: '研究所',   icon: '🔬', cost: 12000,
               desc: '你的每个回合结束时，有 50% 概率免费获得一张卡片。',
-              rent: 0, teach: '研究中心生产的是「工具」——工具本身不生钱，但用得好能改变局势。' },
-    resort: { id: 'resort', name: '度假饭店', icon: '🏝️', cost: 15000,
-              desc: '对手落上需支付高额住宿费（含建造费的回报）。',
-              rent: 3000, teach: '度假饭店是纯进攻型建筑：住宿费高，但一分钱防御都没有。' },
+              rent: 0, teach: '研究所生产的是「工具」——工具本身不生钱，但用得好能改变局势。' },
+    resort: { id: 'resort', name: '度假旅馆', icon: '🏝️', cost: 15000,
+              desc: '对手落上需支付高额住宿费，并强制停留 1 回合。',
+              rent: 3000, teach: '度假旅馆是纯进攻型建筑：住宿费高，但一分钱防御都没有。' },
   };
 
   /* ======================================================================
@@ -145,54 +150,79 @@
      五、平衡常量（balance）
      ====================================================================== */
   const BALANCE = {
-    /* 回合与胜利 */
-    roundLimits: { quick: 20, standard: 35, marathon: 60 },   // 圈数上限（圈 = 绕地图一周）
-    startBonus: 1000,          // 停在起点额外奖励
+    /* 回合与胜利（1 轮 = 小镇历 1 天） */
+    roundLimits: { quick: 20, standard: 35, marathon: 60 },
+    startBonus: 1000,
 
-    /* 银行 */
-    depositRate: 0.005,        // 存款利率 / 圈（0.5%）
-    loanRate: 0.02,            // 贷款利率 / 圈（2%）
-    loanMax: 20000,            // 贷款上限
-    depositStep: [2000, 5000, 10000],  // 快捷存款档位
+    /* ---- 日历 / 物价指数（原版核心经济节奏） ---- */
+    calendar: {
+      monthDays: 15,          // 小镇历：15 天 = 1 月（为网页节奏压缩，机制同原版）
+      weekDays: 7,
+      weekend: [6, 7],        // 周六 / 周日：股市、银行休业
+      holidayDays: [8],       // 每月 8 号：小镇庆典假日，同样休业
+      drawDay: 15,            // 每月 15 号：乐透开奖 + 月底结算 + 公布物价指数
+    },
+    priceIndex: {
+      min: 1, max: 6,
+      affects: ['land', 'rent', 'event', 'build'],   // 地价 / 过路费 / 事件金额 / 盖房费
+    },
+    /* ---- 双骰（原版） ---- */
+    dice: { count: 2, sides: 6, doubleExtraTurn: true, tripleDoubleJail: 3 },
+    jailMaxTurns: 3,
+
+    /* ---- 银行（原版：贷款 3 个月、无息，但贷款期间存款停息） ---- */
+    depositRate: 0.10,        // 每月底按存款 10% 结息（原版口径）
+    loanRate: 0,              // 贷款不收利息
+    loanTermDays: 45,         // 3 个月 = 45 天，到期强制归还
+    loanMax: 20000,
+    depositStep: [2000, 5000, 10000],
 
     /* 股票 */
-    stockDividend: 0.005,      // 分红 / 圈（持有市值 × 0.5%）
+    stockDividend: 0.02,      // 每月底分红（持有市值 × 2%）
 
-    /* 卡片 */
-    cardHandMax: 5,            // 手牌上限
-    cardShopRestockEvery: 3,   // 道具店每 N 次使用后刷新货架
-    ticketCardPrice: 3,        // 点券换卡比例
+    /* 卡片 / 点券 */
+    cardHandMax: 8,
+    cardShopRestockEvery: 3,
+    ticketCardPrice: 3,
+    minigameTickets: [1, 2, 3],   // 小游戏三档奖励
 
     /* 监狱 / 医院 */
     jailTurns: 2,
     hospitalTurns: 3,
-    jailBailTickets: 2,        // 2 张点券保释
+    jailBailTickets: 2,
 
-    /* 乐透 */
+    /* 乐透（原版：自选号码、每月 15 号开奖、无人中奖滚存） */
     lotteryPrice: 500,
     lotteryInitPot: 10000,
-    lotteryPotRate: 0.6,       // 每张票 60% 进奖池
-    lotteryDrawEvery: 5,       // 每 5 圈开奖
+    lotteryPotRate: 0.6,
+    lotteryNumberMin: 1,
+    lotteryNumberMax: 12,
+    lotteryDrawEvery: 15,     // 由日历驱动，此值仅作兜底
     lotteryWinRate: 0.08,
+    fineToPotRate: 0.2,       // 付给银行的罚金 20% 注入奖池
+
+    /* 拍卖 / 交易 */
+    auctionMinIncrement: 500,
+    auctionAIFactor: 0.85,
 
     /* 抵押 / 变卖 */
-    mortgageRate: 0.6,         // 抵押可得地价 × 60%
-    redeemRate: 0.7,           // 赎回需付地价 × 70%
-    sellBuildingRate: 0.5,     // 拆房回收建造费 × 50%
-    sellLandRate: 0.4,         // 破产变卖地价 × 40%
+    mortgageRate: 0.6,
+    redeemRate: 0.7,
+    sellBuildingRate: 0.5,
+    sellLandRate: 0.4,
 
     /* 神明 */
     godTurns: { fortune: 8, bless: 6, poor: 8, decay: 6 },
 
     /* 教育（保留 v1 内核） */
-    livingCost: 1000,          // 每圈生活开销（进收支表，教育口径）
+    livingCost: 1000,
   };
 
   /* 三种局时长（替代 v1 的难度维度；AI 强度独立设定） */
   const GAME_MODES = {
-    quick:    { id: 'quick',    name: '快速局', icon: '⚡', rounds: 20, desc: '约 10 分钟，适合第一次玩。' },
-    standard: { id: 'standard', name: '标准局', icon: '⚖️', rounds: 35, desc: '约 20 分钟，完整体验全部系统。' },
-    marathon: { id: 'marathon', name: '马拉松', icon: '🏔️', rounds: 60, desc: '约 40 分钟，为真正的地产大亨准备。' },
+    quick:    { id: 'quick',    name: '快速局', icon: '⚡', rounds: 20, desc: '20 天，约 10 分钟，适合第一次玩。' },
+    standard: { id: 'standard', name: '标准局', icon: '⚖️', rounds: 35, desc: '35 天（2 个多月），完整体验全部系统。' },
+    marathon: { id: 'marathon', name: '马拉松', icon: '🏔️', rounds: 60, desc: '60 天（4 个月），为真正的地产大亨准备。' },
   };
 
   /* AI 人格（复用 v1 框架：reserve = 现金安全垫月数；riskTol = 风险偏好） */
@@ -228,7 +258,7 @@
   });
 
   global.CFWorld = {
-    COLS, ROWS, ringCoord, buildMap,
+    COLS, ROWS, ringCoord, buildMap, MAX_LEVEL, rentOf,
     DISTRICTS, DISTRICT_SIZE, MAP, SPECIAL_BUILDINGS,
     CHARACTERS, BALANCE, GAME_MODES, AI_PERSONAS, PLAYER_COLORS,
   };

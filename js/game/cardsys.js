@@ -75,14 +75,15 @@
       if (!pickV || pickV === 'cancel') return;
       target = G.players[+pickV.split(':')[1]];
     } else if (card.target === 'estate-empty') {
-      const empties = G.map.filter(c => c.type === 'estate' && c.owner == null && p.cash >= c.price);
+      const empties = G.map.filter(c => c.type === 'estate' && c.owner == null && p.cash >= global.Estate.landPrice(c));
       if (!empties.length) {
-        await U.modal({ icon: card.icon, title: '没有可买的空地', desc: '（或现金不足）', auto: 0 });
+        await U.modal({ icon: card.icon, title: '没有可买的空地', desc: '（或现金不足，价格已含物价指数）', auto: 0 });
         return;
       }
       const pickV = await U.modal({
         icon: card.icon, title: '购地卡：买哪块？',
-        cards: empties.map(c => ({ value: 'e:' + c.i, icon: c.icon, name: c.name, price: c.price,
+        cards: empties.map(c => ({ value: 'e:' + c.i, icon: c.icon, name: c.name,
+          price: global.Estate.landPrice(c),
           desc: W.DISTRICTS[c.district].name + ' · 租金 ' + fmt(c.rent[0]) + '+' })),
         wide: true,
         options: [{ label: '取消', value: 'cancel', soft: true }],
@@ -151,10 +152,12 @@
     const G = E().G;
     const enemies = G.players.filter(x => x.id !== p.id && !x.bankrupt);
     switch (card.target) {
-      case 'self': return null;
+      /* self 类卡不需要目标，但不能返回 null（useCard 会把 null 当作「无法使用」）。
+         返回 true 作为哨兵，让 AI 也能正常使用自身增益卡。 */
+      case 'self': return true;
       case 'enemy': return enemies[0] || null;
       case 'estate-empty':
-        return G.map.filter(c => c.type === 'estate' && c.owner == null && p.cash >= c.price)[0] || null;
+        return G.map.filter(c => c.type === 'estate' && c.owner == null && p.cash >= global.Estate.landPrice(c))[0] || null;
       case 'estate-built':
         return G.map.filter(c => c.type === 'estate' && c.level > 0 && c.owner !== p.id)[0] || null;
       case 'cell':
@@ -179,25 +182,29 @@
 
     switch (k) {
       case 'fixedDice': {
-        /* AI 直接随机锁点（绝不能走进「选点数」的人类弹窗） */
+        /* 双骰规则下锁定的是「两颗骰子的总点数」2-12 */
         if (p.isAI) {
-          p.fixedDice = 3 + Math.floor(Math.random() * 3);
-          U.log('🎛️ <b>' + U.esc(p.name) + '</b> 锁定下次骰子为 ' + p.fixedDice + ' 点', 'info');
+          p.fixedDice = 4 + Math.floor(Math.random() * 7);
+          U.log('🎛️ <b>' + U.esc(p.name) + '</b> 锁定下次骰子总点数为 ' + p.fixedDice + ' 点', 'info');
           return true;
         }
         const v = await U.modal({
-          icon: card.icon, title: '遥控骰子：选点数',
-          cards: [1, 2, 3, 4, 5, 6].map(n => ({ value: 'd:' + n, icon: '🎲', name: '掷出 ' + n + ' 点', price: '' })),
+          icon: card.icon, title: '遥控骰子：选总点数',
+          desc: '两颗骰子合计会走出这个步数（2-12）。',
+          cards: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => ({
+            value: 'd:' + n, icon: '🎲', name: n + ' 步', price: '',
+          })),
+          wide: true,
           options: [{ label: '取消', value: 'cancel', soft: true }],
         });
         if (!v || v === 'cancel') return false;
         p.fixedDice = +v.split(':')[1];
-        await U.modal({ icon: '🎛️', title: '骰子已锁定！', desc: '下次掷骰必定是 ' + p.fixedDice + ' 点。', auto: 1400 });
+        await U.modal({ icon: '🎛️', title: '骰子已锁定！', desc: '下次掷骰总点数必定是 ' + p.fixedDice + '。', auto: 1400 });
         return true;
       }
       case 'buyLand': {
         const cell = target;
-        if (cell.owner != null || p.cash < cell.price) return false;
+        if (!cell || cell.owner != null || p.cash < global.Estate.landPrice(cell)) return false;
         await global.Estate.doBuy(p, cell);
         return true;
       }
@@ -289,6 +296,139 @@
         await U.modal({ icon: '⚖️', title: '均富卡生效！', desc: '所有人的现金都变成了 ' + fmt(avg) + ' 元。', auto: 1800 });
         return true;
       }
+      /* ==================================================================
+         v3 新增卡片效果（全部对 AI 安全：不弹交互式窗口）
+         ================================================================== */
+      case 'bonusSteps': {
+        p.bonusSteps = (p.bonusSteps || 0) + (card.effect.value || 3);
+        U.log('🏍️ <b>' + U.esc(p.name) + '</b> 装备机车，下次掷骰额外前进 ' + p.bonusSteps + ' 格', 'gold');
+        U.toast(card.icon, '机车已就绪', '下次移动 +' + p.bonusSteps + ' 格');
+        return true;
+      }
+      case 'extraTurn': {
+        G.extraTurn = true;
+        U.log('🔁 <b>' + U.esc(p.name) + '</b> 获得一个额外回合！', 'gold');
+        U.toast(card.icon, '再来一次', '本回合结束后还是你');
+        return true;
+      }
+      case 'moveTo': {
+        const cell = target;
+        if (!cell) return false;
+        p.pos = cell.i;
+        B.placeTokens(G.players, p.id);
+        U.log('🌀 <b>' + U.esc(p.name) + '</b> 传送到 ' + cell.name + '（下回合从这里出发）', 'gold');
+        U.toast(card.icon, '传送成功', '已移动到 ' + cell.name);
+        return true;
+      }
+      case 'rentBoost': {
+        p.rentBoostUntil = G.round + (card.effect.days || 3);
+        p.rentBoostRate = card.effect.value || 1.5;
+        U.log('📈 <b>' + U.esc(p.name) + '</b> 旗下地产租金 ×' + p.rentBoostRate + '，持续 ' + (card.effect.days || 3) + ' 天', 'up');
+        U.toast(card.icon, '涨价生效', '租金 ×' + p.rentBoostRate);
+        return true;
+      }
+      case 'doubleRent': {
+        p.doubleRentUntil = G.round + (card.effect.days || 3);
+        U.log('✖️ <b>' + U.esc(p.name) + '</b> 旗下地产租金 ×2，持续 ' + (card.effect.days || 3) + ' 天', 'up');
+        U.toast(card.icon, '租金翻倍', '持续 3 天');
+        return true;
+      }
+      case 'sealEstate': {
+        const cell = target;
+        if (!cell) return false;
+        cell.sealedUntil = G.round + (card.effect.days || 3);
+        U.log('⛔ <b>' + U.esc(p.name) + '</b> 查封了 ' + cell.name + '，3 天内无法收租', 'warn');
+        U.toast(card.icon, '查封成功', cell.name + ' 暂时收不到租');
+        return true;
+      }
+      case 'forceAuction': {
+        const cell = target;
+        if (!cell || cell.owner == null) return false;
+        const prev = G.players[cell.owner];
+        prev.estateIds = prev.estateIds.filter(i => i !== cell.i);
+        cell.owner = null; cell.level = 0; cell.mortgaged = false;
+        B.updateCell(cell, G.players);
+        U.log('🔨 <b>' + U.esc(p.name) + '</b> 把 ' + prev.name + ' 的 ' + cell.name + ' 送上拍卖台', 'warn');
+        await global.Estate.bankAuction(cell, { humanMayBid: !p.isAI });
+        return true;
+      }
+      case 'timedBomb': {
+        if (!target) return false;
+        target.bombDay = G.round + (card.effect.days || 3);
+        U.log('⏱️ <b>' + U.esc(p.name) + '</b> 给 ' + U.esc(target.name) + ' 挂上了定时炸弹（3 天后爆炸）', 'warn');
+        U.toast(card.icon, '炸弹已安装', target.name + ' 3 天后会进医院');
+        return true;
+      }
+      case 'sendJail': {
+        if (!target) return false;
+        const j = G.map.findIndex(c => c.type === 'jail');
+        target.jailTurns = BAL.jailTurns;
+        if (j >= 0) target.pos = j;
+        B.placeTokens(G.players, p.id);
+        U.log('🚓 <b>' + U.esc(target.name) + '</b> 被 ' + U.esc(p.name) + ' 送进了监狱', 'warn');
+        U.toast(card.icon, '入狱！', target.name + ' 要蹲 ' + BAL.jailTurns + ' 回合');
+        return true;
+      }
+      case 'sendHospital': {
+        if (!target) return false;
+        target.hospitalTurns = BAL.hospitalTurns;
+        B.placeTokens(G.players, p.id);
+        U.log('🏥 <b>' + U.esc(target.name) + '</b> 被送进医院休养 ' + BAL.hospitalTurns + ' 回合', 'warn');
+        U.toast(card.icon, '住院！', target.name + ' 停摆 ' + BAL.hospitalTurns + ' 回合');
+        return true;
+      }
+      case 'taxEnemy': {
+        if (!target) return false;
+        const mul = global.Calendar.scale('event');
+        const amt = Math.round(target.estateIds.length * (card.effect.value || 600) * mul);
+        const real = Math.min(amt, Math.max(0, target.cash));
+        target.cash -= real;
+        G.lottery.pot += Math.round(real * BAL.fineToPotRate);
+        U.log('🧾 <b>' + U.esc(target.name) + '</b> 被查税，' + target.estateIds.length + ' 块地共缴 <span class="n down">−' + fmt(real) + '</span>（已计入乐透奖池）', 'down');
+        U.toast(card.icon, '查税成功', '对方损失 ' + fmt(real));
+        return true;
+      }
+      case 'stealCash': {
+        if (!target) return false;
+        const amt = Math.min(card.effect.value || 2000, Math.max(0, target.cash));
+        target.cash -= amt; p.cash += amt;
+        U.log('💸 <b>' + U.esc(p.name) + '</b> 从 ' + U.esc(target.name) + ' 手里拿走 <span class="n up">+' + fmt(amt) + '</span>', 'gold');
+        U.toast(card.icon, '得手了', '+' + fmt(amt) + ' 现金');
+        return true;
+      }
+      case 'cashGift': {
+        await E().giveCash(p, card.effect.value || 2000, '红包卡');
+        return true;
+      }
+      case 'shield': {
+        p.shieldUntil = G.round + (card.effect.days || 3);
+        U.log('🦉 <b>' + U.esc(p.name) + '</b> 获得 3 天厄运免疫', 'up');
+        U.toast(card.icon, '免罪护盾', '3 天内不怕坏事件');
+        return true;
+      }
+      case 'stockTip': {
+        const s = pick(C.STOCKS);
+        const m = G.market[s.id];
+        m.price = Math.max(1, Math.round(m.price * (1 + (card.effect.rate || 0.2))));
+        m.history.push(m.price);
+        U.log('📊 <b>' + U.esc(p.name) + '</b> 的内线消息推高 ' + s.name + ' → ' + fmt(m.price), 'up');
+        U.toast(card.icon, '内线消息', s.name + ' 上涨');
+        return true;
+      }
+      case 'freeLottery': {
+        const G2 = E().G;
+        const n = BAL.lotteryNumberMin + Math.floor(Math.random() * (BAL.lotteryNumberMax - BAL.lotteryNumberMin + 1));
+        const arr = G2.lottery.picks[p.id] = G2.lottery.picks[p.id] || [];
+        if (arr.indexOf(n) < 0) arr.push(n);
+        G2.lottery.tickets[p.id] = arr.length;
+        U.log('🎟️ <b>' + U.esc(p.name) + '</b> 免费获得 ' + n + ' 号彩票', 'up');
+        U.toast(card.icon, '免费彩票', '你持有 ' + n + ' 号');
+        return true;
+      }
+      case 'summonGod': {
+        await attachGod(p, card.effect.god);
+        return true;
+      }
       default:
         return false;
     }
@@ -370,9 +510,9 @@
     const G = E().G;
     let card = pick(C.CHANCES);
 
-    /* 福神挡厄运 */
-    if (!card.good && p.god && p.god.id === 'bless') {
-      U.log('🛡️ 福神庇护！' + U.esc(p.name) + ' 免除了厄运「' + card.text + '」', 'up');
+    /* 福神 / 免罪卡挡厄运 */
+    if (!card.good && ((p.god && p.god.id === 'bless') || (p.shieldUntil && p.shieldUntil >= G.round))) {
+      U.log('🛡️ 庇护生效！' + U.esc(p.name) + ' 免除了厄运「' + card.text + '」', 'up');
       await U.modal({ icon: '🛡️', title: '福神庇护', desc: '厄运被福神挡下了：' + card.text, auto: 1600,
         teach: '这就是福神（保险）的价值：平时看不见，出事的时候才知道多值钱。' });
       return;
@@ -392,10 +532,12 @@
   async function applyChance(p, card) {
     const G = E().G;
     const e = card.effect;
+    /* 原版物价指数：事件金额随全镇资产水涨船高 */
+    const mul = global.Calendar.scale('event');
     switch (e.kind) {
       case 'cash':
-        if (e.value > 0) await E().giveCash(p, e.value, '命运好运');
-        else await E().chargeCash(p, -e.value, null, '命运厄运');
+        if (e.value > 0) await E().giveCash(p, Math.round(e.value * mul), '命运好运');
+        else await E().chargeCash(p, Math.round(-e.value * mul), null, '命运厄运');
         break;
       case 'cashPct': {
         const amt = Math.round(p.cash * Math.abs(e.value));
@@ -410,7 +552,19 @@
         break;
       case 'jail': p.jailTurns = BAL.jailTurns; B.placeTokens(G.players); break;
       case 'hospital': p.hospitalTurns = BAL.hospitalTurns; B.placeTokens(G.players); break;
-      case 'god': await attachGod(p, null); break;
+      case 'god': await attachGod(p, e.force || null); break;
+      case 'magic': {
+        /* 误入魔法屋：女巫直接对当事人施一个随机小法术 */
+        const bad = pick(C.MAGIC_PUNISHMENTS);
+        if (bad.id === 'hospital') p.hospitalTurns = 2;
+        else if (bad.id === 'jail') p.jailTurns = 2;
+        else {
+          const amt = Math.min(Math.round(1200 * mul), Math.max(0, p.cash));
+          p.cash -= amt;
+        }
+        U.log('🔮 女巫对 <b>' + U.esc(p.name) + '</b> 施了「' + bad.name + '」', 'down');
+        break;
+      }
       case 'stockTip': {
         const s = pick(C.STOCKS);
         const m = G.market[s.id];
@@ -448,9 +602,20 @@
         break;
       }
       case 'cashAll': {
-        G.players.forEach(x => { if (!x.bankrupt) x.cash += ev.effect.value; });
-        rows.push({ label: '每人现金', value: (ev.effect.value > 0 ? '+' : '') + fmt(ev.effect.value),
-          cls: ev.effect.value > 0 ? 'up' : 'down' });
+        const mul = global.Calendar.scale('event');
+        const amt = Math.round(ev.effect.value * mul);
+        G.players.forEach(x => {
+          if (x.bankrupt) return;
+          /* 负面事件：福神 / 免罪卡持有者免疫 */
+          if (amt < 0 && ((x.god && x.god.id === 'bless') || (x.shieldUntil && x.shieldUntil >= G.round))) {
+            U.log('🛡️ ' + U.esc(x.name) + ' 免除了本次全体损失', 'up');
+            return;
+          }
+          x.cash = Math.max(0, x.cash + amt);
+        });
+        rows.push({ label: '每人现金', value: (amt > 0 ? '+' : '') + fmt(amt),
+          cls: amt > 0 ? 'up' : 'down' });
+        rows.push({ label: '物价指数', value: '×' + mul.toFixed(1) + '（已计入）' });
         break;
       }
       case 'cashAllSalary': {
@@ -461,12 +626,23 @@
         break;
       }
       case 'taxEstate': {
+        const mul = global.Calendar.scale('event');
+        const per = Math.round(ev.effect.value * mul);
         G.players.forEach(x => {
           if (x.bankrupt) return;
-          const tax = x.estateIds.length * ev.effect.value;
+          const tax = x.estateIds.length * per;
           if (tax > 0) x.cash = Math.max(0, x.cash - tax);
         });
-        rows.push({ label: '房产税', value: fmt(ev.effect.value) + ' / 块', cls: 'down' });
+        rows.push({ label: '房产税', value: fmt(per) + ' / 块（含物价指数）', cls: 'down' });
+        break;
+      }
+      case 'indexUp': {
+        const cal = G.calendar;
+        const before = cal.index;
+        cal.index = Math.min(BAL.priceIndex.max, Math.round((before + ev.effect.value) * 10) / 10);
+        cal.lastIndex = before;
+        rows.push({ label: '物价指数', value: before.toFixed(1) + ' → ' + cal.index.toFixed(1), cls: 'down' });
+        U.log('🏗️ <b>建材涨价</b>：物价指数上调到 <b>' + cal.index.toFixed(1) + '</b>，全镇地价与租金同步上涨', 'warn');
         break;
       }
       case 'lotteryPot': {
@@ -503,40 +679,197 @@
     const godId = forceId || pick(ids);
     const god = C.GODS[godId];
 
+    /* 恶犬是「一次性事件神」：咬完立刻住院，不持续附身 */
+    if (godId === 'dog') {
+      p.hospitalTurns = BAL.hospitalTurns;
+      B.placeTokens(G.players, p.id);
+      global.SFX.play('alert');
+      U.log('🐕 <b>' + U.esc(p.name) + '</b> 被恶犬咬伤，进医院休养 ' + BAL.hospitalTurns + ' 回合！', 'down');
+      await U.modal({
+        icon: '🐕', title: '被恶犬咬了！', auto: p.isAI ? 1600 : 0,
+        desc: '恶犬把你送进了医院。若身上有机车卡（开车状态）本可免疫。',
+        teach: god.teach,
+      });
+      E().render();
+      return;
+    }
+
+    /* 大小神分级：大神持续更久 */
+    const tier = Math.random() < (C.GOD_TIERS.big.chance) ? C.GOD_TIERS.big : C.GOD_TIERS.small;
+    const turns = Math.round((god.turns || 6) * tier.multiplier);
+    const displayName = tier.label + god.name;
+
     /* 已有神明：好换坏 / 坏换好 或直接替换 */
     if (p.god) {
       const old = C.GODS[p.god.id];
       if (old.id === godId) {
-        p.god.turns = BAL.godTurns[godId];   // 续期
-        U.log('✨ ' + U.esc(p.name) + ' 的' + god.name + '续期了', 'gold');
-        await U.modal({ icon: god.icon, title: god.name + ' 续期！', desc: god.desc, auto: p.isAI ? 1500 : 0 });
+        p.god.turns = turns;   // 续期
+        U.log('✨ ' + U.esc(p.name) + ' 的' + displayName + '续期了', 'gold');
+        await U.modal({ icon: god.icon, title: displayName + ' 续期！', desc: god.desc, auto: p.isAI ? 1500 : 0 });
         return;
       }
-      U.log('✨ ' + U.esc(p.name) + ' 送走了' + old.name + '，迎来了' + god.name, 'gold');
+      U.log('✨ ' + U.esc(p.name) + ' 送走了' + old.name + '，迎来了' + displayName, 'gold');
     } else {
-      U.log('✨ <b>' + U.esc(p.name) + '</b> 被' + god.name + '附身！', 'gold');
+      U.log('✨ <b>' + U.esc(p.name) + '</b> 被' + displayName + '附身！', 'gold');
     }
 
-    p.god = { id: godId, turns: BAL.godTurns[godId] };
+    p.god = { id: godId, turns, tier: tier.label };
     global.SFX.play(god.good ? 'lucky' : 'alert');
 
     await U.modal({
-      icon: god.icon, title: (god.good ? '🙏 好运！' : '⚡ 麻烦了！') + god.name + '附身',
-      desc: god.desc + '（持续 ' + BAL.godTurns[godId] + ' 个你的回合）',
+      icon: god.icon, title: (god.good ? '🙏 好运！' : '⚡ 麻烦了！') + displayName + '附身',
+      desc: god.desc + '（持续 ' + turns + ' 个你的回合）',
       teach: god.teach || '',
       auto: p.isAI ? 1800 : 0,
     });
     E().render();
   }
 
-  /* 回合末神明 tick（engine.turnEndSettle 调用） */
+  /* ======================================================================
+     魔法屋（原版：女巫选人 → 玩家决定惩罚）
+     ====================================================================== */
+  async function onMagicHouse(p) {
+    const G = E().G;
+    const pool = G.players.filter(x => !x.bankrupt);
+    if (!pool.length) return;
+    const victim = p.isAI ? pool[Math.floor(Math.random() * pool.length)] : pick(pool);
+
+    U.log('🔮 女巫在魔法屋选中了 <b>' + U.esc(victim.name) + '</b>，由 ' + U.esc(p.name) + ' 决定惩罚', 'gold');
+
+    /* AI 施法者随机选一个；人类施法者自己挑 */
+    let punish;
+    if (p.isAI) {
+      punish = pick(C.MAGIC_PUNISHMENTS);
+    } else {
+      const choice = await U.modal({
+        icon: '🔮', title: '魔法屋 · 女巫的请求',
+        desc: '女巫选中了 <b>' + U.esc(victim.name) + '</b>。你想对他施什么法？',
+        cards: C.MAGIC_PUNISHMENTS.map(x => ({ value: x.id, icon: x.icon, name: x.name, desc: x.desc })),
+        wide: true,
+        options: [{ label: '放过他', value: 'mercy', soft: true }],
+        teach: '魔法屋教的是「决策的后果」：你可以伤害别人，但每一次选择都在塑造这局游戏的走向。',
+      });
+      if (choice === 'mercy' || !choice) {
+        U.log('🕊️ <b>' + U.esc(p.name) + '</b> 选择了宽恕，女巫悻悻而去', 'info');
+        return;
+      }
+      punish = C.MAGIC_PUNISHMENTS.find(x => x.id === choice) || C.MAGIC_PUNISHMENTS[0];
+    }
+
+    const mul = global.Calendar.scale('event');
+    let detail = '';
+    switch (punish.id) {
+      case 'cash': {
+        const amt = Math.min(Math.round(2000 * mul), Math.max(0, victim.cash));
+        victim.cash -= amt; G.lottery.pot += Math.round(amt * BAL.fineToPotRate);
+        detail = '损失 ' + fmt(amt) + ' 元';
+        break;
+      }
+      case 'jail': {
+        victim.jailTurns = BAL.jailTurns;
+        const j = G.map.findIndex(c => c.type === 'jail');
+        if (j >= 0) victim.pos = j;
+        B.placeTokens(G.players, p.id);
+        detail = '入狱 ' + BAL.jailTurns + ' 回合';
+        break;
+      }
+      case 'hospital': {
+        victim.hospitalTurns = BAL.hospitalTurns;
+        B.placeTokens(G.players, p.id);
+        detail = '住院 ' + BAL.hospitalTurns + ' 回合';
+        break;
+      }
+      case 'demolish': {
+        const built = victim.estateIds.map(i => G.map[i]).filter(c => c.type === 'estate' && c.level > 0);
+        if (built.length) {
+          const c = pick(built); c.level--; B.updateCell(c, G.players);
+          detail = c.name + ' 降到 L' + c.level;
+        } else detail = '（没有可拆的建筑）';
+        break;
+      }
+      case 'card': {
+        if (victim.cards.length) {
+          const lost = victim.cards.splice(Math.floor(Math.random() * victim.cards.length), 1)[0];
+          detail = '失去「' + cardName(lost.id) + '」';
+        } else detail = '（对方没有手牌）';
+        break;
+      }
+      case 'tax': {
+        const amt = Math.min(Math.round(victim.estateIds.length * 500 * mul), Math.max(0, victim.cash));
+        victim.cash -= amt;
+        detail = victim.estateIds.length + ' 块地共补税 ' + fmt(amt);
+        break;
+      }
+    }
+    global.SFX.play('alert');
+    U.log('🔮 <b>' + U.esc(victim.name) + '</b> 受到「' + punish.name + '」：' + detail, 'down');
+    await U.modal({
+      icon: punish.icon, title: '女巫施法：' + punish.name,
+      desc: U.esc(victim.name) + ' ' + detail,
+      auto: p.isAI ? 1700 : 0,
+      teach: punish.teach,
+    });
+    E().render();
+  }
+
+  /* 回合末 tick（engine.turnEndSettle 调用）：定时炸弹 + 神明效果 */
   function turnEndTick(p) {
+    const G = E().G;
+    const mul = global.Calendar.scale('event');
+
+    /* 定时炸弹到期 */
+    if (p.bombDay && G.round >= p.bombDay) {
+      p.bombDay = 0;
+      p.hospitalTurns = Math.max(p.hospitalTurns, 2);
+      const fine = Math.min(Math.round(1500 * mul), Math.max(0, p.cash));
+      p.cash -= fine;
+      G.lottery.pot += Math.round(fine * BAL.fineToPotRate);
+      global.SFX.play('fail');
+      U.log('⏱️💥 <b>' + U.esc(p.name) + '</b> 身上的定时炸弹爆炸了！住院 2 回合，损失 ' + fmt(fine), 'down');
+      B.placeTokens(G.players, p.id);
+    }
+
     if (!p.god) return;
     const god = C.GODS[p.god.id];
+    const cell = G.map[p.pos];
+
     if (p.god.id === 'decay') {
-      p.cash = Math.max(0, p.cash - 500);
-      U.log('🌩️ 衰神作祟，' + U.esc(p.name) + ' 损失 500 元', 'down');
+      const loss = Math.min(Math.round(500 * mul), Math.max(0, p.cash));
+      p.cash -= loss;
+      U.log('🌩️ 衰神作祟，' + U.esc(p.name) + ' 损失 ' + fmt(loss) + ' 元', 'down');
     }
+
+    /* 「所到之处」类神明：以停留格结算（近似原版的路过触发） */
+    if (cell && cell.type === 'estate') {
+      if (p.god.id === 'angel' && cell.owner === p.id && cell.level < W.MAX_LEVEL) {
+        cell.level++;
+        B.updateCell(cell, G.players);
+        U.log('👼 天使路过 ' + cell.name + '，免费加盖到 L' + cell.level + '！', 'up');
+      } else if (p.god.id === 'devil' && cell.level > 0) {
+        const owner = cell.owner != null ? G.players[cell.owner] : null;
+        cell.level--;
+        B.updateCell(cell, G.players);
+        U.log('😈 恶魔拆掉 ' + cell.name + ' 一层（' + (owner ? owner.name + ' 受损' : '') + '）', 'down');
+      } else if (p.god.id === 'landgod') {
+        if (cell.owner == null) {
+          cell.owner = p.id;
+          p.estateIds.push(cell.i);
+          B.updateCell(cell, G.players);
+          U.log('🏡 土地公把无主地 ' + cell.name + ' 划给了 ' + U.esc(p.name) + '！', 'up');
+        } else if (cell.owner !== p.id) {
+          const prev = G.players[cell.owner];
+          const price = global.Estate.landPrice(cell);
+          if (p.cash >= price) {
+            p.cash -= price; prev.cash += price;
+            prev.estateIds = prev.estateIds.filter(i => i !== cell.i);
+            cell.owner = p.id; p.estateIds.push(cell.i);
+            B.updateCell(cell, G.players);
+            U.log('🏡 土地公强行征收 ' + cell.name + '，' + U.esc(p.name) + ' 付给 ' + prev.name + ' ' + fmt(price), 'gold');
+          }
+        }
+      }
+    }
+
     p.god.turns--;
     if (p.god.turns <= 0) {
       U.log('✨ ' + god.name + '离开了 ' + U.esc(p.name), 'info');
@@ -607,15 +940,31 @@
       return 'free';
     }
 
+    /* 原版：入狱期间唯有掷出两颗相同点数才能出狱，且不产生额外回合 */
+    const d1 = 1 + Math.floor(Math.random() * 6);
+    const d2 = 1 + Math.floor(Math.random() * 6);
+    if (d1 === d2) {
+      p.jailTurns = 0;
+      U.log('🎲 <b>' + U.esc(p.name) + '</b> 在狱中掷出 ' + d1 + '+' + d2 + ' 同点，成功出狱！', 'up');
+      await U.modal({ icon: '🔓', title: '掷出同点，出狱！', auto: 1600,
+        desc: '按原版规则，监狱里只有两颗骰子同点才能离开（这次不额外多走一轮）。',
+        teach: '有些限制不能靠蛮力突破，只能等条件满足。投资里叫「等待合适的时间」。' });
+      B.placeTokens(G.players, p.id);
+      G.phase = 'idle';
+      E().render();
+      if (p.isAI) global.AISys.playTurn(p);
+      return 'free';
+    }
+
     p.jailTurns--;
-    U.log('🔒 <b>' + U.esc(p.name) + '</b> 蹲监狱中……（剩 ' + Math.max(0, p.jailTurns) + ' 回合）', 'info');
-    await U.modal({ icon: '🔒', title: '蹲监狱……', desc: '还剩 ' + Math.max(0, p.jailTurns) + ' 个回合出狱。', auto: 1400 });
+    U.log('🔒 <b>' + U.esc(p.name) + '</b> 掷出 ' + d1 + '+' + d2 + ' 未同点，继续蹲监狱（剩 ' + Math.max(0, p.jailTurns) + ' 回合）', 'info');
+    await U.modal({ icon: '🔒', title: '蹲监狱……', desc: '掷出 ' + d1 + '+' + d2 + '，没同点。还剩 ' + Math.max(0, p.jailTurns) + ' 个回合。', auto: 1400 });
     return 'stay';
   }
 
   global.CardSys = {
-    giveCard, cardDef, useCard,
-    onShop, onCardCell, onChance, onNews,
+    giveCard, cardDef, cardName, useCard, autoTarget, execCard,
+    onShop, onCardCell, onChance, onNews, onMagicHouse,
     onGodCell, attachGod, turnEndTick, jailPhase,
   };
 })(window);

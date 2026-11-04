@@ -142,8 +142,18 @@
 .bc-val { font-size: 19px; font-weight: 900; color: var(--ink); font-variant-numeric: tabular-nums; }
 .bc-note { font-size: 10.5px; color: var(--muted-2); margin-bottom: 8px; }
 .bc-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.bank-tip {
+  margin-top: 10px; padding: 9px 11px; border-radius: var(--r-sm);
+  background: #fff8e9; border: 1px solid #f2dfae;
+  font-size: 11px; line-height: 1.65; color: #7a5c1e;
+}
 
 /* ── 股票面板 ── */
+.market-closed {
+  margin-bottom: 10px; padding: 9px 11px; border-radius: var(--r-sm);
+  background: #eef2f8; border: 1px solid #cfd9e8;
+  font-size: 11.5px; font-weight: 800; color: #4c5f7c;
+}
 .stock-list { display: grid; gap: 10px; }
 .stock-row {
   background: var(--bg); border-radius: var(--r-sm); padding: 10px 12px;

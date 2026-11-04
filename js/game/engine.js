@@ -21,9 +21,11 @@
     phase: 'boot',            // idle / rolling / moving / landing / idle-post / turnEnd / over
     over: false, mode: 'standard', cfg: null,
     market: null,             // 股票行情 {id: {price, history[]}}
-    lottery: null,            // {pot, tickets: Map(pid→count), nextDrawRound}
+    lottery: null,            // {pot, tickets, picks, lastWin}
     rentMod: null,            // {rate, untilRound} 新闻：租金倍率
-    shopStock: {},            // 道具店货架 {id: {cards[], used}}
+    shopStock: {},            // 道具店货架
+    calendar: null,           // 日历 + 物价指数（Calendar 模块）
+    extraTurn: false,         // 掷出同点 → 同一玩家再来一轮
     startedAt: 0, log: [],
   };
 
@@ -46,16 +48,21 @@
       color: W.PLAYER_COLORS[index % W.PLAYER_COLORS.length],
       char: ch,
 
-      cash: ch.cash, deposit: 0, loan: 0,
+      cash: ch.cash, deposit: 0, loan: 0, loanDueDay: 0,
       pos: 0, laps: 0,
 
       estateIds: [],           // 持有地块下标
       stocks: {},              // {id: {shares, cost}}
       cards: [],               // 手牌 [{id, uid}]
       tickets: 2,              // 初始送 2 张点券（教会用）
+      lotteryPicks: [],        // 本月已买的乐透号码
 
       jailTurns: 0, hospitalTurns: 0, skipTurns: 0,
-      god: null,               // {id, turns}
+      doubleStreak: 0,         // 连续掷出同点次数（3 次直接入狱）
+      bonusSteps: 0,           // 机车卡：下次移动额外步数
+      bombDay: 0,              // 定时炸弹到期日
+      shieldUntil: 0, doubleRentUntil: 0, rentBoostUntil: 0, rentBoostRate: 1.5,
+      god: null,               // {id, turns, tier}
       freePassReady: false,    // 免费卡挂起（下一次支付免除）
       bankrupt: false, outRank: null,
       freedomBadge: false,
@@ -93,6 +100,7 @@
     G.startedAt = Date.now();
     G.rentMod = null;
     G.shopStock = {};
+    G.extraTurn = false;
 
     G.players = cfg.players.map((pc, i) => createPlayer(pc, i));
 
@@ -102,8 +110,11 @@
       G.market[s.id] = { price: s.base, history: [s.base] };
     });
 
-    /* 乐透 */
-    G.lottery = { pot: BAL.lotteryInitPot, tickets: {}, nextDrawRound: BAL.lotteryDrawEvery };
+    /* 乐透（原版：自选号码、每月开奖、无人中奖滚存） */
+    G.lottery = { pot: BAL.lotteryInitPot, tickets: {}, picks: {}, lastDraw: null, lastWin: null };
+
+    /* 日历 + 物价指数必须在 players / market 就绪后初始化（要算开局资产基准） */
+    global.Calendar.init(G);
 
     /* 道具店货架 */
     restockShop();
@@ -119,7 +130,9 @@
     U.renderBadges && U.renderBadges([], new Set());
 
     const mode = W.GAME_MODES[G.mode];
-    U.log('🎬 <b>梦想小镇开张！</b>' + mode.icon + ' ' + mode.name + '（' + mode.rounds + ' 轮）· 让对手破产，或坚持到最后成为<b>总资产第一</b>！', 'gold');
+    U.log('🎬 <b>梦想小镇开张！</b>' + mode.icon + ' ' + mode.name + '（' + mode.rounds + ' 天）· 让对手破产，或坚持到最后成为<b>总资产第一</b>！', 'gold');
+    U.log('📅 <b>' + global.Calendar.label() + '</b> · 每月 ' + BAL.calendar.drawDay +
+      ' 号乐透开奖 + 月底结算；周末与假日股市、银行休业。物价指数会随全镇资产上涨，越到后期越吃现金。', 'info');
     G.players.forEach(p => {
       U.log(p.emoji + ' <b>' + U.esc(p.name) + '</b>（' + p.char.name + '）初始现金 <span class="n">' + fmt(p.cash) +
         '</span>，每月津贴 <span class="n">' + fmt(p.char.salary) + '</span>' +
@@ -202,13 +215,50 @@
     render();
     global.SFX.play('dice');
 
-    let v = fixedValue || (1 + Math.floor(Math.random() * 6));
-    await B.rollDiceAnimation(v);
+    /* ---- 两颗骰子（原版规则）---- */
+    let dice;
+    if (Array.isArray(fixedValue) && fixedValue.length >= 2) {
+      dice = [+fixedValue[0] || 1, +fixedValue[1] || 1];
+    } else if (typeof fixedValue === 'number' && fixedValue > 0) {
+      /* 遥控骰子：指定总点数 2-12，拆成两颗 */
+      const total = Math.max(2, Math.min(12, Math.round(fixedValue)));
+      const d1 = Math.max(1, Math.min(6, total - 6));
+      dice = [d1, total - d1];
+    } else {
+      dice = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+    }
+    const steps = dice[0] + dice[1] + (p.bonusSteps || 0);
+    const bonus = p.bonusSteps || 0;
+    p.bonusSteps = 0;
+    if (bonus > 0) U.log('🏍️ 机车加速：本次额外前进 ' + bonus + ' 格（共 ' + steps + ' 格）', 'gold');
+    const isDouble = dice[0] === dice[1];
+
+    await B.rollDiceAnimation(dice);
     await U.sleep(180);
+
+    /* 连续三次同点 → 直接入狱（原版）；入狱不占用这次移动 */
+    p.doubleStreak = isDouble ? (p.doubleStreak || 0) + 1 : 0;
+    if (p.doubleStreak >= BAL.dice.tripleDoubleJail) {
+      p.doubleStreak = 0;
+      const jailIdx = G.map.findIndex(c => c.type === 'jail');
+      if (jailIdx >= 0) p.pos = jailIdx;
+      p.jailTurns = BAL.jailMaxTurns;
+      G.phase = 'landing';
+      B.placeTokens(G.players, p.id);
+      U.log('🚓 <b>' + U.esc(p.name) + '</b> 连续三次掷出同点，被直接请进监狱，本回合不得移动！', 'warn');
+      await U.modal({
+        icon: '🚓', title: '连续三次同点', auto: p.isAI ? 1400 : 0,
+        desc: '两颗骰子连续三次同点，按规则直接入狱。',
+        teach: '小概率事件也会发生。留一点应急现金，就是为了应付这种「计划外」。',
+      });
+      render();
+      G.phase = 'idle-post';
+      return endTurn();
+    }
 
     G.phase = 'moving';
     render();
-    await movePlayer(p, v);
+    await movePlayer(p, steps);
 
     if (G.over) return;
     G.phase = 'landing';
@@ -218,6 +268,14 @@
     if (G.over) return;
     G.phase = 'idle-post';
     render();
+
+    /* 同点多一个回合（原版）；已入狱 / 住院 / 破产时取消 */
+    if (isDouble && BAL.dice.doubleExtraTurn && !p.bankrupt && !p.jailTurns && !p.hospitalTurns) {
+      G.extraTurn = true;
+      U.log('🎲 <b>' + U.esc(p.name) + '</b> 掷出 ' + dice[0] + '+' + dice[1] +
+        ' 同点，获得 <b>额外一回合</b>（仍算同一天）！', 'gold');
+      U.toast('🎲', '同点！再走一轮', '本回合结束后还是你');
+    }
     if (p.isAI) { global.AISys.postLanding(p); armWatch(); }
   }
 
@@ -246,7 +304,8 @@
     clearTimeout(endWatchTimer);
     endWatchTimer = setTimeout(() => {
       if (G.over) return;
-      if (G.phase === 'turnEnd' && !advanceScheduled) {
+      if (G.phase === 'turnEnd') {
+        advanceScheduled = false;   // 清掉可能悬挂的排队标志，避免二次卡死
         U.log('⏰ <b>自动推进</b>：回合结束阶段停滞，强制进入下一位', 'warn');
         nextTurn();
       }
@@ -281,6 +340,17 @@
       return;
     }
 
+    /* 掷出同点的额外回合：不换人、也不增加一天（原版口径） */
+    if (G.extraTurn) {
+      G.extraTurn = false;
+      const q = cur();
+      if (q && !q.bankrupt && !G.over) {
+        render();
+        beginTurn();
+        return;
+      }
+    }
+
     /* 找下一个存活玩家 */
     let guard = 0;
     do {
@@ -294,18 +364,38 @@
     } while (G.players[G.cur].bankrupt && guard < G.players.length * 2);
 
     clearTimeout(endWatchTimer);
+    /* 关键：新回合开始必须清掉上一回合的 turnEnd。
+       否则玩家在监狱/医院/梦游分支调用 endTurn 时，会被
+       「phase === turnEnd → return」拦住，整条 AI 推进链永久停摆。 */
+    G.phase = 'idle';
     render();
     beginTurn();
   }
 
-  /* 每轮结算（全体）：股票行情、存贷利息、乐透开奖、租金新闻到期 */
+  /* 每「天」结算：日历推进 → 开休市 / 月度开奖与结算 / 物价指数 */
   function roundTick() {
-    global.Finance.marketTick();
-    global.Finance.interestTick();
+    const CAL = global.Calendar;
+    const ev = CAL.advance();
 
-    if (G.round > G.lottery.nextDrawRound) {
+    if (ev.holiday) {
+      U.log('📅 <b>' + ev.label + '</b> · 假日休市，股市与银行今日不营业', 'info');
+    } else {
+      global.Finance.marketTick();
+    }
+
+    /* 每月 15 号：乐透开奖 + 月底结算（存款利息、股票分红、贷款到期、物价指数） */
+    if (ev.draw) {
       global.Finance.lotteryDraw();
-      G.lottery.nextDrawRound += BAL.lotteryDrawEvery;
+      G.lottery.nextDrawRound = G.round + BAL.calendar.monthDays;
+    }
+    if (ev.monthEnd) {
+      global.Finance.monthEndSettle(ev);
+      const ic = ev.indexChange;
+      if (ic && ic.to !== ic.from) {
+        U.log('📊 <b>月底结算</b>：全镇物价指数 ' + ic.from.toFixed(1) + ' → <b>' + ic.to.toFixed(1) +
+          '</b>（平均资产为开局的 ' + ic.raw.toFixed(2) + ' 倍）· 地价 / 过路费 / 盖房费 / 事件金额同步调整', 'gold');
+        U.setNews('物价指数 ' + ic.to.toFixed(1) + ' · ' + CAL.label(), '指数');
+      }
     }
     if (G.rentMod && G.round > G.rentMod.untilRound) {
       G.rentMod = null;
@@ -433,6 +523,10 @@
     p.cash -= amount;
     const to = toId != null ? G.players[toId] : null;
     if (to) to.cash += amount;
+    else if (G.lottery) {
+      /* 原版：罚款、意外损失等「付给银行」的钱会滚进乐透奖池 */
+      G.lottery.pot += Math.round(amount * BAL.fineToPotRate);
+    }
 
     U.floatText(p.pos, '−' + fmt(amount), '#0f9d58');
     if (to) await U.coinsFly(p.id, to.id, amount);
@@ -556,7 +650,8 @@
         (noWinner ? '所有人都被过路费和利息拖垮了——这才是最生动的一课：现金流断了，资产再多也没用。'
           : iWon ? '你的每一笔买地、每一次盖楼都算数。' : '下一局，把他的街区抢过来！') + '</p>' +
       '<div class="result-stats">' +
-        '<div class="rstat"><div class="k">共进行轮数</div><div class="v">' + (G.round - 1) + '</div></div>' +
+        '<div class="rstat"><div class="k">共进行天数</div><div class="v">' + (G.round - 1) + '</div></div>' +
+        '<div class="rstat"><div class="k">最终物价指数</div><div class="v">' + (G.calendar ? G.calendar.index.toFixed(1) : '1.0') + '</div></div>' +
         '<div class="rstat"><div class="k">你的总资产</div><div class="v ' + (me.netWorth >= 0 ? 'up' : 'down') + '">' + fmt(me.netWorth) + '</div></div>' +
         '<div class="rstat"><div class="k">你收的租金</div><div class="v up">' + fmt(me.stats.rentEarned) + '</div></div>' +
       '</div>' +
@@ -624,6 +719,8 @@
         case 'shop':        return await global.CardSys.onShop(p, cell);
         case 'card':        return await global.CardSys.onCardCell(p);
         case 'god':         return await global.CardSys.onGodCell(p);
+        case 'magic':       return await global.CardSys.onMagicHouse(p);
+        case 'arcade':      return await global.MiniGame.onArcade(p);
         case 'park':        return await onPark(p, cell);
         case 'jail':        return await onJailVisit(p, cell);
         case 'hospital':    return await onHospitalVisit(p, cell);
@@ -668,7 +765,8 @@
     if (cell.type === 'estate') {
       rows.push({ label: '地价', value: fmt(cell.price) });
       rows.push({ label: '盖房费（每级）', value: fmt(cell.buildCost) });
-      rows.push({ label: '空地 / L1 / L2 / L3 / L4 租金', value: cell.rent.map(fmt).join(' / ') });
+      rows.push({ label: '空地 / L1 / L2 / L3 / L4 / L5 租金', value: cell.rent.map(fmt).join(' / ') });
+      rows.push({ label: '当前物价指数', value: '×' + global.Calendar.index().toFixed(1) + '（地价与租金同步）' });
       if (D) rows.push({ label: '街区', value: D.icon + ' ' + D.name + '（集齐 ' + W.DISTRICT_SIZE[D.id] + ' 块 → 租金 ×2）' });
       const owner = cell.owner != null ? G.players[cell.owner] : null;
       rows.push({ label: '产权', value: owner ? owner.emoji + ' ' + owner.name + '（L' + cell.level + '）' : '无主', cls: owner ? '' : 'muted' });

@@ -69,8 +69,9 @@
       rentRows.forEach(r => rows.push(r));
     }
     rows.push({ kind: 'subtotal', label: '📈 被动收入合计（租金）', value: sign(passive), cls: 'up' });
-    if (dividend > 0) rows.push({ label: '🎫 股票分红（市值 × 0.5%）', value: sign(dividend), cls: 'up' });
-    if (depositInt > 0) rows.push({ label: '🏦 存款利息', value: sign(depositInt), cls: 'up' });
+    if (dividend > 0) rows.push({ label: '🎫 股票分红（市值 × ' + (B.stockDividend * 100).toFixed(0) + '% / 月）', value: sign(dividend), cls: 'up' });
+    if (depositInt > 0) rows.push({ label: '🏦 存款利息（' + (B.depositRate * 100).toFixed(0) + '% / 月）', value: sign(depositInt), cls: 'up' });
+    if (p.loan > 0) rows.push({ label: '⚠️ 有贷款在身，本月存款利息暂停', value: '0', cls: 'down' });
     rows.push({ kind: 'subtotal', label: '收入合计', value: sign(totalIncome), cls: 'up' });
 
     rows.push({ kind: 'heading', label: '支出（每月）' });
@@ -88,6 +89,14 @@
     rows.push({ kind: 'subtotal', label: '🎯 财务自由：被动收入 ÷ 生活开销', value: pct + '%',
       cls: passive >= living ? 'up' : 'muted' });
     rows.push({ kind: 'note', label: '　租金是「睡着了也在赚」的钱。达到 100% 表示：就算不掷骰子，你也活得下去。' });
+
+    /* 小镇经济：物价指数是原版后期最关键的隐藏变量 */
+    const cal = global.Calendar;
+    rows.push({ kind: 'heading', label: '小镇经济 · ' + cal.label() });
+    rows.push({ label: '📊 物价指数（地价 / 租金 / 事件金额）', value: '×' + cal.index().toFixed(1),
+      cls: cal.index() > 1 ? 'down' : 'muted' });
+    rows.push({ label: '🎰 距本月乐透开奖', value: cal.nextDrawDays() + ' 天' });
+    rows.push({ kind: 'note', label: '　' + cal.teachText() });
 
     return { rows, ncf, passive, totalIncome, totalExpense };
   }

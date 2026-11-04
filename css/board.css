@@ -223,44 +223,45 @@
 .cc-badge.bad { background: #fdecec; color: var(--up); }
 .cc-badge.good { background: #e6f7ee; color: var(--down); }
 
-/* 3D 骰子 */
-.cc-dice { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0; }
+/* 3D 骰子（原版为两颗，并排各自旋转） */
+.cc-dice { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 2px 0; }
 .dice-stage {
-  width: 64px; height: 64px; perspective: 700px;
-  display: grid; place-items: center; flex: 0 0 auto;
+  width: auto; height: 46px; perspective: 700px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto;
 }
 /* 倾斜层：始终让骰子保持立体视角，内层只负责「哪一面朝前」 */
 .dice-tilt {
-  width: 56px; height: 56px;
+  --dz: 20px;
+  width: 40px; height: 40px;
   transform-style: preserve-3d;
   transform: rotateX(-16deg) rotateY(-24deg);
 }
 .dice-3d {
   width: 100%; height: 100%; position: relative;
   transform-style: preserve-3d;
-  filter: drop-shadow(0 6px 10px rgba(47,63,92,.22));
+  filter: drop-shadow(0 5px 8px rgba(47,63,92,.22));
   transition: transform .5s cubic-bezier(.3, .1, .2, 1);
 }
 .dice-3d.rolling { transition: transform .16s linear; }
 .dice-face {
   position: absolute; inset: 0;
   background: linear-gradient(140deg, #ffffff 0%, #e9effb 100%);
-  border: 2px solid #b9c6de; border-radius: 12px;
+  border: 2px solid #b9c6de; border-radius: 10px;
   display: grid; place-items: center;
   box-shadow: inset 0 -4px 8px rgba(47,63,92,.10), inset 0 2px 0 rgba(255,255,255,.9);
   backface-visibility: hidden;
 }
 .dice-face svg { width: 78%; height: 78%; }
-.d-face-front  { transform: translateZ(28px); }
-.d-face-back   { transform: rotateY(180deg) translateZ(28px); }
-.d-face-right  { transform: rotateY(90deg) translateZ(28px); }
-.d-face-left   { transform: rotateY(-90deg) translateZ(28px); }
-.d-face-top    { transform: rotateX(90deg) translateZ(28px); }
-.d-face-bottom { transform: rotateX(-90deg) translateZ(28px); }
+.d-face-front  { transform: translateZ(var(--dz)); }
+.d-face-back   { transform: rotateY(180deg) translateZ(var(--dz)); }
+.d-face-right  { transform: rotateY(90deg) translateZ(var(--dz)); }
+.d-face-left   { transform: rotateY(-90deg) translateZ(var(--dz)); }
+.d-face-top    { transform: rotateX(90deg) translateZ(var(--dz)); }
+.d-face-bottom { transform: rotateX(-90deg) translateZ(var(--dz)); }
 
 .dice-value {
-  font-size: 28px; font-weight: 900; color: var(--brand);
-  font-variant-numeric: tabular-nums; min-width: 34px; text-align: center;
+  font-size: 22px; font-weight: 900; color: var(--brand);
+  font-variant-numeric: tabular-nums; min-width: 48px; text-align: center;
   text-shadow: 0 2px 6px rgba(79,110,247,.25);
 }
 
@@ -271,7 +272,7 @@
 .ccs span { font-size: 8.5px; color: var(--muted-2); font-weight: 600; }
 
 /* 操作按钮 */
-.cc-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.cc-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .cc-btn {
   border: none; background: var(--bg); cursor: pointer; font-family: inherit;
   border-radius: 10px; padding: 7px 1px; transition: .14s;
@@ -326,31 +327,17 @@
   }
   .cc-head { flex: 1 1 120px; }
   .cc-dice { flex: 0 0 auto; }
-  .cc-dice .dice-stage { width: 44px; height: 44px; }
-  .dice-tilt { width: 36px; height: 36px; }
-  .dice-3d { width: 36px; height: 36px; }
-  .d-face-front  { transform: translateZ(18px); }
-  .d-face-back   { transform: rotateY(180deg) translateZ(18px); }
-  .d-face-right  { transform: rotateY(90deg) translateZ(18px); }
-  .d-face-left   { transform: rotateY(-90deg) translateZ(18px); }
-  .d-face-top    { transform: rotateX(90deg) translateZ(18px); }
-  .d-face-bottom { transform: rotateX(-90deg) translateZ(18px); }
-  .dice-value { font-size: 20px; min-width: 24px; }
+  .cc-dice .dice-stage { width: auto; height: 34px; gap: 4px; }
+  .dice-tilt { --dz: 15px; width: 30px; height: 30px; }
+  .dice-value { font-size: 17px; min-width: 38px; }
   .cc-badges { flex: 0 0 auto; }
   .cc-stats { flex: 1 1 100%; grid-template-columns: repeat(4, 1fr); }
   .cc-actions { flex: 1 1 100%; }
   .cc-end { flex: 1 1 100%; margin: 0; }
   .cc-end .btn { padding: 9px; }
-  .dice-stage { width: 46px; height: 46px; perspective: 500px; }
-  .dice-tilt { width: 40px; height: 40px; }
-  .dice-3d { width: 40px; height: 40px; }
-  .d-face-front  { transform: translateZ(20px); }
-  .d-face-back   { transform: rotateY(180deg) translateZ(20px); }
-  .d-face-right  { transform: rotateY(90deg) translateZ(20px); }
-  .d-face-left   { transform: rotateY(-90deg) translateZ(20px); }
-  .d-face-top    { transform: rotateX(90deg) translateZ(20px); }
-  .d-face-bottom { transform: rotateX(-90deg) translateZ(20px); }
-  .dice-value { font-size: 19px; }
+  .dice-stage { width: auto; height: 36px; perspective: 500px; gap: 5px; }
+  .dice-tilt { --dz: 16px; width: 32px; height: 32px; }
+  .dice-value { font-size: 16px; }
   .token-body { width: 26px; height: 26px; font-size: 13px; }
 }
 @media (max-width: 560px) {

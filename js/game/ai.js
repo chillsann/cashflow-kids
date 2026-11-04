@@ -290,10 +290,28 @@
         if (cell) { cell.roadblock = true; global.Board.updateCell(cell, G.players); U.log('🚧 ' + cell.name + ' 被放置路障', 'warn'); }
         break;
       case 'fixedDice':
-        /* AI 掷骰前直接用 */
-        p.fixedDice = 2 + Math.floor(Math.random() * 4);
+        /* AI 掷骰前直接用（双骰：锁总点数 2-12） */
+        p.fixedDice = 4 + Math.floor(Math.random() * 7);
         U.log('🎛️ ' + p.name + ' 用遥控骰子锁定了 ' + p.fixedDice + ' 点', 'info');
         break;
+
+      default: {
+        /* v3：所有新增卡片（以及此前 AI 静默失效的旧卡）统一交给
+           cardsys.execCard 执行。该实现已保证 AI 路径不弹交互窗。 */
+        let t = true;
+        if (card.target === 'enemy') t = targetPlayer;
+        else if (card.target === 'cell') t = cell || G.map[(p.pos + 5) % G.map.length];
+        else if (card.target === 'estate-built' || card.target === 'estate-empty') t = cell;
+        else if (card.target === 'swap') {
+          const mine = p.estateIds.map(i => G.map[i]).filter(c => c.type === 'estate')[0];
+          const theirs = G.map.filter(c => c.type === 'estate' && c.owner != null && c.owner !== p.id)[0];
+          if (!mine || !theirs) break;
+          t = { mine, theirs };
+        }
+        if (!t) break;
+        await global.CardSys.execCard(p, card, t);
+        break;
+      }
     }
   }
 

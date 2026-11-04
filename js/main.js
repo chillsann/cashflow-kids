@@ -135,16 +135,18 @@
       icon: '📖', title: '梦想小镇 · 玩法说明', wide: true,
       html:
         '<div class="help-grid">' +
-        '<div class="help-item"><b>🎯 胜利条件</b><p>让所有对手<b>破产</b>，或轮数走完时<b>总资产最高</b>。总资产 = 现金 + 存款 + 地产 + 股票 − 贷款。</p></div>' +
-        '<div class="help-item"><b>🏠 买地盖房</b><p>落到无主地块可买下；再次落上可加盖（L1 小屋 → L4 酒店）。对手落上就要交过路费。</p></div>' +
-        '<div class="help-item"><b>⚡ 垄断</b><p>集齐同一街区的<b>全部</b>地块，该街区租金 <b>×2</b>。这是最快拉开差距的方式。</p></div>' +
-        '<div class="help-item"><b>📈 股市</b><p>4 只股票，每轮波动。低买高卖赚差价，持有还有分红。涨得快的，跌得也快。</p></div>' +
-        '<div class="help-item"><b>🃏 卡片</b><p>道具店购买、卡片格拾取、命运赠送。遥控骰子、怪兽卡、路障、炸弹……</p></div>' +
-        '<div class="help-item"><b>✨ 神明</b><p>财神收入 ×2、福神挡厄运、穷神收入减半、衰神扣钱。好坏全看运气。</p></div>' +
-        '<div class="help-item"><b>🎰 乐透</b><p>500 元一张，每 5 轮开奖，中奖率 8%。奖池越大越值得赌一把。</p></div>' +
-        '<div class="help-item"><b>🏦 银行</b><p>存款生息、贷款付息。贷款是杠杆：放大收益，也放大风险。</p></div>' +
+        '<div class="help-item"><b>🎯 胜利条件</b><p>让所有对手<b>破产</b>，或天数走完时<b>总资产最高</b>。总资产 = 现金 + 存款 + 地产 + 股票 − 贷款。</p></div>' +
+        '<div class="help-item"><b>🎲 两颗骰子</b><p>同点可<b>再走一轮</b>，连续三次同点直接入狱；监狱里也要掷出同点才能出狱。</p></div>' +
+        '<div class="help-item"><b>📅 日历与物价</b><p>每人走一轮 = 1 天，小镇历 15 天 = 1 月。周末与假日股市银行休业；每月 15 号乐透开奖 + 月底结息 + 公布物价指数。</p></div>' +
+        '<div class="help-item"><b>🏠 买地盖房</b><p>无主地块可买；再次落上可加盖（L1 小屋 → L5 星级酒店）。同街连锁有加成，集齐全街租金 <b>×2</b>。不买会被银行拿去公开拍卖。</p></div>' +
+        '<div class="help-item"><b>📈 股市</b><p>4 只股票，营业日波动，休市日不能交易；每月底按持仓市值分红。涨得快的，跌得也快。</p></div>' +
+        '<div class="help-item"><b>🃏 卡片与点券</b><p>32 张功能卡；在游乐场玩接金币 / 射神明 / 猜兔子赚点券，点券可在道具店换卡。</p></div>' +
+        '<div class="help-item"><b>✨ 神明与魔法屋</b><p>8 位神明（含土地公、天使、恶魔、恶犬），分大小神；魔法屋由女巫选人、你决定惩罚。</p></div>' +
+        '<div class="help-item"><b>🎰 乐透</b><p>自己选 1-12 号投注，每月 15 号开奖。无人中奖，奖池<b>滚存</b>到下月；罚款也会注入奖池。</p></div>' +
+        '<div class="help-item"><b>🏦 银行</b><p>贷款 3 个月、<b>不收利息</b>，但借款期间存款停止计息；到期必须全数归还。</p></div>' +
+        '<div class="help-item"><b>🤝 交易</b><p>用操作台的「交易」按钮和对手换空地，可以补现金差额——能不能谈成，取决于对方觉得这块地值多少。</p></div>' +
         '</div>',
-      teach: '记住大亨的三条铁律：<b>① 现金流是氧气；② 垄断是杠杆；③ 分散是铠甲。</b>',
+      teach: '记住大亨的三条铁律：<b>① 现金流是氧气；② 垄断是杠杆；③ 通胀是隐藏的对手</b>——物价指数涨起来，收的租和要付的钱会一起变多。',
     });
   }
 
@@ -189,6 +191,7 @@
         else if (act === 'cards') openMyCards(p);
         else if (act === 'stock') global.Finance.stockPanel(p);
         else if (act === 'bank') global.Finance.bankPanel(p);
+        else if (act === 'trade') global.Estate.tradePanel(p);
         else if (act === 'end') global.Engine.endTurn();
         return;
       }
