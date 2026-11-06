@@ -20,7 +20,7 @@
     map: [], players: [], cur: 0, round: 1, turnCount: 0,
     phase: 'boot',            // idle / rolling / moving / landing / idle-post / turnEnd / over
     over: false, mode: 'standard', cfg: null,
-    market: null,             // 股票行情 {id: {price, history[]}}
+    market: null,             // 股票行情 {id: {price, history[], candles[OHLC]}}
     lottery: null,            // {pot, tickets, picks, lastWin}
     rentMod: null,            // {rate, untilRound} 新闻：租金倍率
     shopStock: {},            // 道具店货架
@@ -104,10 +104,12 @@
 
     G.players = cfg.players.map((pc, i) => createPlayer(pc, i));
 
-    /* 股票行情初始化 */
+    /* 股票行情初始化：由量价引擎预置 40 个营业日的完整行情（含成交量与
+       吸筹→突破→趋势→派发→下跌的技术形态），末根严格收在基准价，
+       保证开局平衡与 v3.0 完全一致。详见 js/game/market.js */
     G.market = {};
     C.STOCKS.forEach(s => {
-      G.market[s.id] = { price: s.base, history: [s.base] };
+      G.market[s.id] = global.MarketEngine.seed(s, s.id);
     });
 
     /* 乐透（原版：自选号码、每月开奖、无人中奖滚存） */

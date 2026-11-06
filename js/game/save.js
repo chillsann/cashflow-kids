@@ -75,7 +75,13 @@
     /* 覆盖状态 */
     G.cur = s.cur; G.round = s.round; G.turnCount = s.turnCount;
     G.startedAt = s.startedAt || Date.now();
-    G.market = s.market;
+    G.market = s.market || {};
+    /* 旧存档（v3.0 / v3.1）只有收盘序列、没有成交量与引擎状态：
+       读档时补齐 OHLCV + 量价引擎状态，保证老存档也能画出完整 K 线 */
+    Object.keys(G.market).forEach(id => {
+      const def = (global.CFContent.STOCKS || []).find(s => s.id === id);
+      global.MarketEngine.normalize(G.market[id], def, id);
+    });
     G.lottery = Object.assign({ pot: 10000, tickets: {}, picks: {}, lastDraw: null, lastWin: null, nextDrawRound: 15 }, s.lottery || {});
     G.rentMod = s.rentMod;
     G.shopStock = s.shopStock || {};

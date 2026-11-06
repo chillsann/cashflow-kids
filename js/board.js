@@ -1,5 +1,5 @@
 /* ==========================================================================
-   现金流小富翁 v2 · 棋盘渲染层
+   现金流小富翁 v3.1 · 棋盘渲染层（2.5D 立体绘本）
    SVG 参数化建筑（L0 空地 → L4 酒店 + 4 种特殊建筑）
    街区色带 · 产权标记 · 持久棋子（平滑移动）· 3D 骰子
    ========================================================================== */
@@ -13,78 +13,93 @@
      一、SVG 建筑生成（参数化：同函数随 level 变外观）
      ====================================================================== */
 
-  /* 房屋：level 0-4。颜色随 owner，形态随等级 */
-  function houseSVG(level, color) {
-    const c = color || '#9aa7b8';
-    const dark = shade(c, -18), light = shade(c, 20);
-    let inner = '';
-    if (level === 0) {
-      /* 空地：草地 + 出售木牌 */
-      inner =
-        '<ellipse cx="24" cy="40" rx="16" ry="4" fill="#bfe3a8"/>' +
-        '<path d="M14 40 q10 -8 20 0" stroke="#8ec66f" stroke-width="1.5" fill="none"/>' +
-        '<rect x="19" y="22" width="10" height="12" rx="1.5" fill="#c98d4f"/>' +
-        '<rect x="17.5" y="24" width="13" height="5" rx="1" fill="#fff" stroke="#a9713a" stroke-width=".8"/>' +
-        '<text x="24" y="28.2" font-size="3.6" text-anchor="middle" fill="#a9713a" font-weight="700">出售</text>';
-    } else if (level === 1) {
-      /* 小屋：单层坡顶 */
-      inner =
-        '<rect x="13" y="24" width="22" height="16" rx="1.5" fill="' + light + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<path d="M11 25 L24 14 L37 25 Z" fill="' + c + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<rect x="21" y="29" width="6" height="11" rx="1" fill="' + dark + '"/>' +
-        '<rect x="15.5" y="28" width="4.5" height="4.5" rx=".8" fill="#fff" stroke="' + dark + '" stroke-width=".7"/>' +
-        '<rect x="28" y="28" width="4.5" height="4.5" rx=".8" fill="#fff" stroke="' + dark + '" stroke-width=".7"/>';
-    } else if (level === 2) {
-      /* 洋房：双层 + 烟囱 */
-      inner =
-        '<rect x="14" y="20" width="20" height="20" rx="1.5" fill="' + light + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<path d="M12 21 L24 11 L36 21 Z" fill="' + c + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<rect x="28" y="8" width="3.5" height="7" rx=".8" fill="' + dark + '"/>' +
-        '<rect x="20.5" y="25" width="7" height="15" rx="1" fill="' + dark + '"/>' +
-        '<rect x="15.5" y="24" width="4" height="4" rx=".7" fill="#fff" stroke="' + dark + '" stroke-width=".6"/>' +
-        '<rect x="28.5" y="24" width="4" height="4" rx=".7" fill="#fff" stroke="' + dark + '" stroke-width=".6"/>' +
-        '<rect x="15.5" y="31" width="4" height="4" rx=".7" fill="#fff" stroke="' + dark + '" stroke-width=".6"/>' +
-        '<rect x="28.5" y="31" width="4" height="4" rx=".7" fill="#fff" stroke="' + dark + '" stroke-width=".6"/>';
-    } else if (level === 3) {
-      /* 大厦：三层平顶 + 窗阵 */
-      inner =
-        '<rect x="14" y="12" width="20" height="28" rx="1.5" fill="' + light + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<rect x="12.5" y="10" width="23" height="3.5" rx="1" fill="' + c + '"/>' +
-        '<rect x="20.5" y="24" width="7" height="16" rx="1" fill="' + dark + '"/>' +
-        windows(15, 15.5, 3, 2) + windows(15, 22.5, 3, 2) + windows(15, 29.5, 3, 2);
-    } else if (level === 4) {
-      /* L4 大楼：宽体 + 金字招牌 + 旗子 */
-      inner =
-        '<rect x="10" y="14" width="28" height="26" rx="2" fill="' + light + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<rect x="8.5" y="11.5" width="31" height="4" rx="1.5" fill="' + c + '"/>' +
-        '<path d="M24 11 V3.5 l6 2 -6 2" fill="#f6c043" stroke="#d99a2b" stroke-width=".8"/>' +
-        '<rect x="15" y="16.5" width="18" height="5" rx="1" fill="#f6c043" stroke="#d99a2b" stroke-width=".8"/>' +
-        '<text x="24" y="20.8" font-size="4" text-anchor="middle" fill="#8a5c00" font-weight="800">HOTEL</text>' +
-        '<rect x="20.5" y="27" width="7" height="13" rx="1" fill="' + dark + '"/>' +
-        windows(12, 25, 4, 1) + windows(28, 25, 2, 1);
-    } else {
-      /* L5 星级酒店：塔楼 + 皇冠 + 星星，最高级地标 */
-      inner =
-        '<ellipse cx="24" cy="42" rx="19" ry="3" fill="rgba(47,63,92,.12)"/>' +
-        '<rect x="12" y="16" width="24" height="26" rx="2" fill="' + light + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<rect x="17" y="8" width="14" height="9" rx="1.5" fill="' + c + '" stroke="' + dark + '" stroke-width="1"/>' +
-        '<path d="M24 8 V2" stroke="#d99a2b" stroke-width="1.4"/>' +
-        '<path d="M16 5 l2.2 -2.6 2.2 2.6 3.6 -3.4 3.6 3.4 2.2 -2.6 2.2 2.6 Z" fill="#f6c043" stroke="#d99a2b" stroke-width=".7"/>' +
-        '<rect x="14" y="18" width="20" height="4.5" rx="1" fill="#f6c043" stroke="#d99a2b" stroke-width=".7"/>' +
-        '<text x="24" y="21.6" font-size="3.8" text-anchor="middle" fill="#8a5c00" font-weight="800">★★★★★</text>' +
-        '<rect x="21" y="30" width="6" height="12" rx="1" fill="' + dark + '"/>' +
-        windows(14, 25, 3, 2) + windows(29, 25, 1, 2);
-    }
-    return '<svg viewBox="0 0 48 48" class="b-svg">' + inner + '</svg>';
+  /* ======================================================================
+     一、SVG 建筑生成（v3.1 · 2.5D 斜二测立体建筑，来自已确认的视觉样张）
+     正面矩形 + 顶面平行四边形 + 右侧面；建筑按街区取柔和色，
+     产权仍由格子边框与小旗区分，避免高饱和玩家色堆叠。
+     ====================================================================== */
+  const INK = '#3A4A5C';
+  const DISTRICT_TONE = {
+    breakfast:'#E9C173', candy:'#E9AFBB', dessert:'#C1A9DA', milktea:'#DFAE85',
+    beach:'#8FC3D2', funfair:'#93A9DF', jewel:'#8FC5AC', star:'#DC9A86'
+  };
 
-    function windows(x0, y0, cols, rows) {
-      let s = '';
-      for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) {
-        s += '<rect x="' + (x0 + k * 6) + '" y="' + (y0 + r * 6.5) + '" width="4" height="4.6" rx=".7" fill="#fff" opacity=".92" stroke="' + dark + '" stroke-width=".5"/>';
-      }
-      return s;
-    }
+function prism(x,y,w,h,d,c){
+  const top=shade(c,20), front=shade(c,6), side=shade(c,-16);
+  return '<path d="M'+x+' '+y+' l'+d+' -'+(d*.6)+' h'+w+' l-'+d+' '+(d*.6)+' Z" fill="'+top+'" stroke="'+INK+'" stroke-width="1.15" stroke-linejoin="round"/>'+
+    '<path d="M'+(x+w)+' '+y+' l'+d+' -'+(d*.6)+' v'+h+' l-'+d+' '+(d*.6)+' Z" fill="'+side+'" stroke="'+INK+'" stroke-width="1.15" stroke-linejoin="round"/>'+
+    '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="1.2" fill="'+front+'" stroke="'+INK+'" stroke-width="1.15"/>';
+}
+function windows(x,y,cols,rows,gap,cls){
+  let s='';
+  for(let r=0;r<rows;r++)for(let k=0;k<cols;k++){
+    s+='<rect class="'+(cls||'win')+'" x="'+(x+k*gap)+'" y="'+(y+r*(gap*1.05))+'" width="4.3" height="4.6" rx=".9" fill="#FFF6E2" stroke="'+INK+'" stroke-width=".7"/>';
   }
+  return s;
+}
+function gable(x,y,w,d,c){
+  /* 坡屋顶：正面人字 + 右侧斜面 */
+  const roof=shade(c,-8), side=shade(c,-24);
+  const apexX=x+w/2, apexY=y-9;
+  return '<path d="M'+(x+w)+' '+y+' L'+(apexX+d)+' '+(apexY-d*.6)+' L'+(apexX)+' '+apexY+' L'+x+' '+y+' Z" fill="'+side+'" stroke="'+INK+'" stroke-width="1.15" stroke-linejoin="round"/>'+
+    '<path d="M'+(x-1.5)+' '+y+' L'+apexX+' '+apexY+' L'+(x+w+1.5)+' '+y+' Z" fill="'+roof+'" stroke="'+INK+'" stroke-width="1.25" stroke-linejoin="round"/>';
+}
+function houseSVG(level,color){
+  const c=color||'#C9B7A0';
+  const ink=INK;
+  let s='<svg viewBox="0 0 48 52" class="b-svg" xmlns="http://www.w3.org/2000/svg">';
+  /* 地面投影 */
+  s+='<ellipse cx="24" cy="46" rx="16" ry="3.8" fill="rgba(58,74,92,.15)"/>';
+
+  if(level===0){
+    /* 空地：草丘 + 小树 + 草丛 + 出售木牌（让 24 块空地也有画面感） */
+    s+='<path d="M6 45 Q24 34 42 45 Z" fill="#CFE0B4" stroke="'+ink+'" stroke-width="1.25" stroke-linejoin="round"/>';
+    s+='<path d="M10 44 Q24 38 38 44" fill="none" stroke="#A8C68C" stroke-width="1" opacity=".8"/>';
+    s+='<rect x="11.6" y="30" width="2.8" height="13" rx="1.2" fill="#B98B5E" stroke="'+ink+'" stroke-width=".9"/>';
+    s+='<circle cx="13" cy="27.5" r="6.4" fill="#A8C68C" stroke="'+ink+'" stroke-width="1.25"/>';
+    s+='<circle cx="8.6" cy="31" r="3.9" fill="#B9D29C" stroke="'+ink+'" stroke-width="1"/>';
+    s+='<circle cx="17" cy="30.5" r="3.4" fill="#9DBE82" stroke="'+ink+'" stroke-width="1"/>';
+    s+='<path d="M31 43 l1.4 -4.4 M34 43 l2 -3.4 M37 43 l1.2 -4" stroke="#8FAE79" stroke-width="1.3" stroke-linecap="round" fill="none"/>';
+    s+='<rect x="22.6" y="33" width="2.6" height="11" rx="1" fill="#B98B5E" stroke="'+ink+'" stroke-width="1"/>';
+    s+='<rect x="17" y="24.5" width="14" height="10" rx="2" fill="#F6E7C6" stroke="'+ink+'" stroke-width="1.3"/>';
+    s+='<text x="24" y="31.9" font-size="6.4" text-anchor="middle" fill="'+ink+'" font-weight="900" font-family="sans-serif">出售</text>';
+  }else if(level===1){
+    s+=prism(14,27,18,15,5,c);
+    s+=gable(14,27,18,5,c);
+    s+=windows(16,31,3,1,5.5);
+    s+='<rect x="21" y="36" width="5.5" height="6" rx="1" fill="'+shade(c,-30)+'" stroke="'+ink+'" stroke-width=".9"/>';
+  }else if(level===2){
+    s+=prism(13,22,20,20,5,c);
+    s+=gable(13,22,20,5,c);
+    s+='<rect x="28" y="10" width="3.6" height="8" rx="1" fill="'+shade(c,-26)+'" stroke="'+ink+'" stroke-width="1"/>';
+    s+=windows(15,26,3,2,6);
+    s+='<rect x="21" y="35" width="5.5" height="7" rx="1" fill="'+shade(c,-30)+'" stroke="'+ink+'" stroke-width=".9"/>';
+  }else if(level===3){
+    s+=prism(12,18,21,24,6,c);
+    s+='<rect x="10.5" y="15.5" width="24" height="3.4" rx="1.2" fill="'+shade(c,-12)+'" stroke="'+ink+'" stroke-width="1.1"/>';
+    s+=windows(14.5,21,3,3,6);
+    s+='<rect x="20.5" y="35" width="6" height="7" rx="1" fill="'+shade(c,-32)+'" stroke="'+ink+'" stroke-width=".9"/>';
+  }else if(level===4){
+    s+=prism(10,16,25,26,6,c);
+    s+='<rect x="8.5" y="13.5" width="28" height="3.6" rx="1.3" fill="'+shade(c,-12)+'" stroke="'+ink+'" stroke-width="1.1"/>';
+    s+='<path d="M22.5 13.5 V6 l7 2.4 -7 2.4" fill="#F0C86A" stroke="'+ink+'" stroke-width=".9" stroke-linejoin="round"/>';
+    s+='<rect x="14" y="19" width="17" height="5" rx="1.4" fill="#F6D98C" stroke="'+ink+'" stroke-width="1"/>';
+    s+='<text x="22.5" y="23.1" font-size="4" text-anchor="middle" fill="'+ink+'" font-weight="900" font-family="sans-serif">HOTEL</text>';
+    s+=windows(13,26,4,2,5.6);
+    s+='<rect x="20" y="35" width="6" height="7" rx="1" fill="'+shade(c,-32)+'" stroke="'+ink+'" stroke-width=".9"/>';
+  }else{
+    /* L5 星级酒店：塔楼 + 皇冠 + 五星 */
+    s+=prism(11,17,23,25,6,c);
+    s+='<rect x="17" y="8" width="12" height="9" rx="1.5" fill="'+shade(c,-10)+'" stroke="'+ink+'" stroke-width="1.2"/>';
+    s+='<path d="M16.5 8 l2.4 -3 2.6 3 2 -3.6 2 3.6 2.6 -3 2.4 3 Z" fill="#F0C86A" stroke="'+ink+'" stroke-width=".9" stroke-linejoin="round"/>';
+    s+='<rect x="13" y="19" width="19" height="4.6" rx="1.2" fill="#F6D98C" stroke="'+ink+'" stroke-width="1"/>';
+    s+='<text x="22.5" y="22.6" font-size="4.2" text-anchor="middle" fill="'+ink+'" font-weight="900" font-family="sans-serif">★★★★★</text>';
+    s+=windows(13,25,3,2,6.4);
+    s+='<rect x="20" y="35" width="6" height="7" rx="1" fill="'+shade(c,-32)+'" stroke="'+ink+'" stroke-width=".9"/>';
+    s+='<circle cx="6" cy="24" r="1.1" fill="#F0C86A"/><circle cx="42" cy="30" r="1.1" fill="#F0C86A"/>';
+  }
+  return s+'</svg>';
+}
 
   /* 特殊建筑 */
   function specialSVG(kind) {
@@ -157,9 +172,7 @@
      ====================================================================== */
   function cellIconHTML(cell, players) {
     if (cell.type === 'estate') {
-      const owner = cell.owner != null ? players[cell.owner] : null;
-      const oc = owner ? owner.color : null;
-      return houseSVG(cell.level, oc);
+      return houseSVG(cell.level, DISTRICT_TONE[cell.district] || null);
     }
     if (cell.type === 'special') {
       return specialSVG(cell.building ? cell.building : 'empty');

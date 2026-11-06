@@ -173,6 +173,68 @@
 .sr-pos { font-size: 11px; color: var(--text-2); }
 .sr-btns { display: flex; flex-wrap: wrap; gap: 4px; }
 
+/* ── K 线行情主图（暖白纸张 + 墨蓝描边，二期视觉语言） ── */
+.kline-wrap {
+  margin-bottom: 12px; padding: 12px 14px 10px;
+  background: linear-gradient(158deg, #FFFDF7, #FBF5E8);
+  border: 1.6px solid #3A4A5C; border-radius: 14px;
+  box-shadow: 0 4px 0 #E7DCC4, 0 8px 16px rgba(58,74,92,.12);
+}
+.kl-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.kl-name { font-size: 12.5px; color: var(--ink); display: flex; align-items: center; gap: 5px; }
+.kl-name b { font-size: 15px; font-weight: 900; }
+.kl-code {
+  font-size: 9px; font-weight: 800; letter-spacing: .6px; color: var(--muted-2);
+  background: var(--bg); border: 1px solid var(--line); padding: 2px 5px; border-radius: 5px;
+}
+.kl-price {
+  margin-left: auto; font-size: 20px; font-weight: 900; color: var(--ink);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.kl-ohlc {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 7px 0 3px; font-size: 10.5px; font-weight: 700; color: var(--muted-2);
+}
+.kl-ohlc b { color: var(--ink); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.kl-ohlc b.up { color: var(--up) !important; }
+.kl-ohlc b.down { color: var(--down) !important; }
+.kl-day { margin-left: auto; font-weight: 800; color: var(--muted-2); }
+.kline { width: 100%; height: auto; display: block; border-radius: 6px; }
+.kline.mini { width: 120px; height: 40px; }
+.kl-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; font-size: 10px; font-weight: 800; }
+.lg-up { color: #e0342b; }
+.lg-down { color: #0f9d58; }
+.lg-ma5 { color: #E39A6B; }
+.lg-ma10 { color: #4F6EF7; }
+.kl-teach {
+  margin-top: 9px; padding: 8px 10px; border-radius: 9px;
+  background: rgba(227,154,107,.10); border: 1.3px dashed rgba(200,124,80,.42);
+  font-size: 10.5px; line-height: 1.65; color: var(--text-2); font-weight: 600;
+}
+.kl-teach b { color: var(--ink); }
+.kl-switch-tip { margin-top: 9px; font-size: 10.5px; font-weight: 700; color: var(--muted-2); text-align: center; }
+.kline-empty { padding: 26px; text-align: center; font-size: 11px; color: var(--muted-2); font-weight: 700; }
+
+.stock-row {
+  cursor: pointer; border: 1.5px solid transparent;
+  transition: background .18s, border-color .18s, box-shadow .18s;
+}
+.stock-row:hover { border-color: rgba(58,74,92,.28); }
+.stock-row.selected {
+  background: linear-gradient(158deg, #FFFDF7, #FBF5E8);
+  border-color: #3A4A5C; box-shadow: 0 3px 0 #E7DCC4;
+}
+.sr-mini { display: flex; align-items: center; gap: 10px; }
+.sr-mini .kline.mini { flex: 0 0 120px; }
+.sr-mini::after { content: '点此查看完整 K 线 →'; font-size: 10px; font-weight: 700; color: var(--muted-2); }
+
+@media (max-width: 560px) {
+  .kl-ohlc { gap: 8px; font-size: 9.5px; }
+  .kl-price { font-size: 17px; }
+  .kl-legend { gap: 8px; font-size: 9px; }
+  .sr-mini::after { display: none; }
+}
+
 @media (max-width: 700px) {
   .bank-grid { grid-template-columns: 1fr; }
   .players-deck { grid-template-columns: repeat(2, 1fr); }
@@ -186,3 +248,85 @@
 
 .hcard { min-width: 54px; padding: 5px 7px; }
 }
+
+/* ==========================================================================
+   v3.2 专业行情图：主图 + VOL + MACD + 十字光标（覆盖 v3.1 旧 K 线样式）
+   ========================================================================== */
+.kl-head { gap: 8px; }
+.kl-price { font-size: 21px; color: var(--muted-2); }
+.kl-price.up, .kl-head .up { color: var(--up); }
+.kl-price.down, .kl-head .down { color: var(--down); }
+.kl-chg { font-size: 11.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.kl-chg.up { color: var(--up); }
+.kl-chg.down { color: var(--down); }
+.kl-tabs {
+  margin-left: 2px; display: inline-flex; gap: 3px; padding: 2px;
+  background: #F1EADC; border: 1.4px solid #3A4A5C; border-radius: 8px;
+}
+.kl-tab {
+  font: inherit; font-size: 10.5px; font-weight: 900; color: var(--text-2);
+  background: transparent; border: 0; padding: 3px 9px; border-radius: 5px; cursor: pointer;
+}
+.kl-tab.on { background: #3A4A5C; color: #fff; box-shadow: 0 2px 0 #E7DCC4; }
+.kl-tab:hover:not(.on) { background: rgba(58,74,92,.10); }
+
+.kl-quote {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px 8px;
+  margin: 9px 0 6px; padding: 8px 10px;
+  background: rgba(255,255,255,.72); border: 1.3px solid #E7DCC4; border-radius: 9px;
+}
+.kq-item { display: flex; align-items: baseline; gap: 4px; font-size: 10px; color: var(--muted-2); font-weight: 700; white-space: nowrap; }
+.kq-item b { font-size: 11px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kq-item b.up { color: var(--up); }
+.kq-item b.down { color: var(--down); }
+
+.kl-chart-box { position: relative; border: 1.3px solid #E7DCC4; border-radius: 9px; overflow: hidden; background: #FFFDF9; }
+.kl-main { width: 100%; height: auto; display: block; }
+.kl-hit { cursor: crosshair; }
+.kl-tip {
+  position: absolute; display: none; z-index: 5; width: 202px; padding: 8px 10px; pointer-events: none;
+  background: rgba(255,253,247,.98); border: 1.5px solid #3A4A5C; border-radius: 9px;
+  box-shadow: 0 5px 0 #E7DCC4, 0 10px 22px rgba(58,74,92,.18);
+  font-size: 10px; color: var(--text-2);
+}
+.kt-head { font-weight: 900; color: var(--ink); font-size: 11px; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px dashed #E7DCC4; }
+.kt-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 2px 6px; font-size: 10px; }
+.kt-grid span { color: var(--muted-2); }
+.kt-grid b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.kt-grid b.up, .kt-row b.up { color: var(--up); }
+.kt-grid b.down, .kt-row b.down { color: var(--down); }
+.kt-row { margin-top: 4px; font-size: 10px; }
+.kt-row b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.kt-form { margin-top: 5px; padding-top: 4px; border-top: 1px dashed #E7DCC4; font-weight: 800; color: #B4762F; }
+
+.kl-legend { gap: 9px; font-size: 9.5px; margin-top: 7px; }
+.lg-ma20 { color: #9B7BD4; }
+.kl-cursor-tip { margin-left: auto; color: var(--muted-2); font-weight: 700; }
+
+.kl-signal { display: flex; gap: 9px; margin-top: 9px; padding: 9px 11px; border-radius: 10px; border: 1.5px solid; }
+.kl-signal.bull { background: rgba(224,52,43,.06); border-color: rgba(224,52,43,.35); }
+.kl-signal.bear { background: rgba(15,157,88,.06); border-color: rgba(15,157,88,.35); }
+.kl-signal.neutral { background: rgba(79,110,247,.06); border-color: rgba(79,110,247,.30); }
+.ks-icon { font-size: 18px; line-height: 1.2; }
+.ks-body b { font-size: 12px; font-weight: 900; color: var(--ink); }
+.kl-signal.bull .ks-body b { color: var(--up); }
+.kl-signal.bear .ks-body b { color: var(--down); }
+.ks-form {
+  margin-left: 7px; font-size: 9.5px; font-weight: 800; color: var(--muted-2);
+  background: var(--bg); border: 1px solid var(--line); padding: 2px 6px; border-radius: 5px;
+}
+.ks-body p { margin: 3px 0 0; font-size: 10.5px; line-height: 1.6; color: var(--text-2); }
+
+@media (max-width: 700px) {
+  .kl-quote { grid-template-columns: repeat(4, 1fr); }
+  .kl-head { gap: 6px; }
+  .kl-price { font-size: 18px; }
+  .kl-cursor-tip { display: none; }
+  .kl-tip { width: 178px; font-size: 9.5px; }
+}
+
+/* 自选股行内缩略图铺满剩余宽度，避免大片留白 */
+.sr-mini { display: flex; align-items: center; gap: 10px; }
+.sr-mini .kline.mini { flex: 1 1 auto; width: auto; height: 44px; }
+.sr-mini::after { white-space: nowrap; }
+@media (max-width: 560px) { .sr-mini .kline.mini { height: 38px; } }

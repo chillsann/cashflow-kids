@@ -345,3 +345,66 @@
   .cell-name { display: none; }
   .cell-art .b-svg { max-width: 30px; }
 }
+
+/* ==========================================================================
+   v3.1 二期视觉：2.5D 立体纸片地块（暖白纸张 + 墨蓝描边）
+   以下规则覆盖上方 v2 的平面网格样式
+   ========================================================================== */
+.board-shell {
+  background: linear-gradient(158deg, #FFFDF7, #F7F0E0);
+  border: 1.6px solid #3A4A5C; border-radius: 18px;
+  box-shadow: 0 5px 0 #E7DCC4, 0 12px 26px rgba(58,74,92,.14);
+}
+.board-stage::before { opacity: .82; }
+
+.cell {
+  border-radius: 9px;
+  background: linear-gradient(158deg, #fff, #FFFDF7);
+  border: 1.5px solid #C9BCA0;
+  box-shadow: 0 4px 0 #E7DCC4, 0 7px 11px rgba(58,74,92,.14),
+              inset 0 1.5px 0 rgba(255,255,255,.95);
+}
+.cell:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 7px 0 #E7DCC4, 0 12px 18px rgba(58,74,92,.20);
+}
+.cell[data-district]::before { left: 5px; right: 5px; height: 5px; border-radius: 0 0 5px 5px; }
+.cell[data-district="breakfast"]::before { background: #E9C173; }
+.cell[data-district="candy"]::before     { background: #E9AFBB; }
+.cell[data-district="dessert"]::before   { background: #C1A9DA; }
+.cell[data-district="milktea"]::before   { background: #DFAE85; }
+.cell[data-district="beach"]::before     { background: #8FC3D2; }
+.cell[data-district="funfair"]::before   { background: #93A9DF; }
+.cell[data-district="jewel"]::before     { background: #8FC5AC; }
+.cell[data-district="star"]::before      { background: #DC9A86; }
+
+.cell.owned {
+  background: linear-gradient(158deg, #fff, #FFF9EC);
+  outline: none; border-color: var(--pc);
+  box-shadow: 0 4px 0 #E7DCC4, 0 7px 11px rgba(58,74,92,.14), inset 0 0 0 1.5px var(--pc);
+}
+.cell.mortgaged { filter: grayscale(.5) opacity(.78); }
+.cell.highlight {
+  box-shadow: 0 0 0 3px var(--brand), 0 8px 20px rgba(79,110,247,.32), 0 4px 0 #E7DCC4;
+}
+.cell-art .b-svg { max-width: 48px; }
+.cell-name { font-weight: 900; }
+.cell-sub { font-weight: 800; }
+.cell-emoji {
+  width: clamp(20px, 2.3vw, 28px); height: clamp(20px, 2.3vw, 28px);
+  border-radius: 50%; display: grid; place-items: center; line-height: 1;
+  background: var(--bg); border: 1.8px solid #3A4A5C;
+  font-size: clamp(10px, 1.3vw, 14px);
+  box-shadow: 0 2.5px 0 #E7DCC4, inset 0 2px 0 rgba(255,255,255,.9);
+}
+.own-flag { border: 1.5px solid #3A4A5C; box-shadow: 0 2px 0 #E7DCC4; }
+
+/* 移动端收窄厚度，避免格子挤在一起 */
+@media (max-width: 700px) {
+  .cell { border-radius: 6px; box-shadow: 0 2.5px 0 #E7DCC4, 0 4px 7px rgba(58,74,92,.14); }
+  .cell:hover { box-shadow: 0 4px 0 #E7DCC4, 0 7px 11px rgba(58,74,92,.18); }
+  .cell-art .b-svg { max-width: 34px; }
+}
+@media (max-width: 560px) {
+  .cell-art .b-svg { max-width: 32px; }
+}

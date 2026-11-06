@@ -409,8 +409,8 @@
       case 'stockTip': {
         const s = pick(C.STOCKS);
         const m = G.market[s.id];
-        m.price = Math.max(1, Math.round(m.price * (1 + (card.effect.rate || 0.2))));
-        m.history.push(m.price);
+        const next = m.price * (1 + (card.effect.rate || 0.2));
+        global.Finance.pushQuote(m, next);
         U.log('📊 <b>' + U.esc(p.name) + '</b> 的内线消息推高 ' + s.name + ' → ' + fmt(m.price), 'up');
         U.toast(card.icon, '内线消息', s.name + ' 上涨');
         return true;
@@ -568,8 +568,7 @@
       case 'stockTip': {
         const s = pick(C.STOCKS);
         const m = G.market[s.id];
-        m.price = Math.round(m.price * 1.15);
-        m.history.push(m.price);
+        global.Finance.pushQuote(m, m.price * 1.15);
         U.log('📈 内线消息推高 ' + s.name + '！现价 ' + fmt(m.price), 'up');
         break;
       }
@@ -592,8 +591,7 @@
       case 'stock': {
         const apply = id => {
           const m = G.market[id];
-          m.price = Math.max(1, Math.round(m.price * (1 + ev.effect.rate)));
-          m.history.push(m.price);
+          global.Finance.pushQuote(m, m.price * (1 + ev.effect.rate));
         };
         if (ev.effect.target === 'all') C.STOCKS.forEach(s => apply(s.id));
         else apply(ev.effect.target);
